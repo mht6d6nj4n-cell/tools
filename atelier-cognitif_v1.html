@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier cognitif — planches générées</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEBE4;
+  --plate:#F6F4EE;
+  --ink:#14181F;
+  --ink-soft:#5F6570;
+  --rule:#C9C5B8;
+  --indigo:#2F3E9E;
+  --kelp:#0F6B5C;
+  --rust:#A33B2A;
+  --r:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding:0 0 64px;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;margin:0;letter-spacing:-.015em}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+
+.wrap{max-width:820px;margin:0 auto;padding:0 20px}
+
+/* ---- instrument bar ---- */
+.bar{
+  position:sticky;top:0;z-index:20;
+  background:var(--paper);
+  border-bottom:1px solid var(--rule);
+}
+.bar-in{
+  max-width:820px;margin:0 auto;padding:10px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.tag{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-soft);
+}
+.tag b{color:var(--ink);font-weight:500}
+.spacer{flex:1}
+
+/* signature: échelle adaptative */
+.ladder{display:flex;align-items:flex-end;gap:2px;height:26px}
+.ladder i{
+  width:5px;background:var(--rule);border-radius:1px;display:block;
+  transition:height .18s ease, background .18s ease;
+}
+.ladder i.ok{background:var(--indigo)}
+.ladder i.ko{background:var(--rust);opacity:.55}
+@media (prefers-reduced-motion:reduce){.ladder i{transition:none}}
+
+/* ---- plate ---- */
+.plate{
+  background:var(--plate);
+  border:1px solid var(--rule);
+  border-radius:var(--r);
+  padding:22px;
+  margin-top:22px;
+}
+.plate-head{display:flex;align-items:baseline;gap:12px;margin-bottom:4px;flex-wrap:wrap}
+.plate-head h2{font-size:20px}
+.consigne{color:var(--ink-soft);font-size:14px;margin:2px 0 18px}
+
+.stim{display:flex;justify-content:center;margin:6px 0 20px}
+.stim svg{max-width:100%;height:auto}
+
+.opts{display:grid;gap:10px}
+.opts.g4{grid-template-columns:repeat(4,1fr)}
+.opts.g2{grid-template-columns:repeat(2,1fr)}
+.opts.g1{grid-template-columns:1fr}
+@media(max-width:620px){.opts.g4{grid-template-columns:repeat(2,1fr)}}
+
+.opt{
+  background:#fff;border:1px solid var(--rule);border-radius:var(--r);
+  padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  position:relative;transition:border-color .12s,background .12s;
+}
+.opt:hover:not(:disabled){border-color:var(--indigo)}
+.opt:disabled{cursor:default}
+.opt .k{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-soft);
+  position:absolute;top:5px;left:7px;
+}
+.opt.right{border-color:var(--kelp);background:#EDF5F2;border-width:2px;padding:9px}
+.opt.wrong{border-color:var(--rust);background:#F7EDEA;border-width:2px;padding:9px}
+.opt-text{font-size:17px;padding:12px 8px}
+.opt-text.mono{font-size:19px}
+
+.fb{
+  margin-top:18px;border-top:1px solid var(--rule);padding-top:14px;
+  display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;
+}
+.verdict{font-family:Fraunces,serif;font-weight:700;font-size:17px;white-space:nowrap}
+.verdict.ok{color:var(--kelp)}
+.verdict.ko{color:var(--rust)}
+.why{flex:1;min-width:220px;font-size:14px;color:var(--ink-soft)}
+.why b{color:var(--ink);font-weight:500}
+
+.btn{
+  background:var(--ink);color:var(--plate);border:1px solid var(--ink);
+  border-radius:var(--r);padding:9px 18px;font-weight:500;
+}
+.btn:hover{background:#000}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.btn.ghost:hover{background:#fff;border-color:var(--ink)}
+.btn.sm{padding:6px 12px;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.right{justify-content:flex-end}
+
+/* ---- accueil ---- */
+.hero{padding:42px 0 6px}
+.hero h1{font-size:clamp(30px,6vw,46px);line-height:1.02}
+.hero .lede{color:var(--ink-soft);max-width:52ch;margin-top:12px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);margin-bottom:12px}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:14px}
+.card{
+  background:var(--plate);border:1px solid var(--rule);border-radius:var(--r);
+  padding:14px;text-align:left;display:flex;flex-direction:column;gap:5px;
+}
+.card:hover{border-color:var(--indigo)}
+.card .dom{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo)}
+.card .nm{font-family:Fraunces,serif;font-weight:700;font-size:17px}
+.card .ds{font-size:13px;color:var(--ink-soft)}
+
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;background:var(--plate)}
+.seg button{background:transparent;border:0;padding:7px 14px;font-size:13px;color:var(--ink-soft)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--plate)}
+
+.sect{margin-top:34px}
+.sect h3{font-size:15px;margin-bottom:10px}
+hr.rule{border:0;border-top:1px solid var(--rule);margin:34px 0 0}
+
+/* ---- corsi ---- */
+.corsi{position:relative;width:340px;height:300px;margin:0 auto;max-width:100%}
+.blk{
+  position:absolute;width:56px;height:56px;background:#fff;border:1px solid var(--rule);
+  border-radius:var(--r);transition:background .1s,border-color .1s;
+}
+.blk.lit{background:var(--indigo);border-color:var(--indigo)}
+.blk.pick{background:var(--ink);border-color:var(--ink)}
+.blk.good{background:var(--kelp);border-color:var(--kelp)}
+.blk.bad{background:var(--rust);border-color:var(--rust)}
+
+/* ---- différences ---- */
+.diffwrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.diffwrap{grid-template-columns:1fr}}
+.diffpan{background:#fff;border:1px solid var(--rule);border-radius:var(--r);position:relative;cursor:crosshair}
+.diffpan svg{display:block;width:100%;height:auto}
+
+/* ---- résultats ---- */
+table.res{width:100%;border-collapse:collapse;font-size:14px}
+table.res th,table.res td{text-align:left;padding:8px 4px;border-bottom:1px solid var(--rule)}
+table.res th{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:400}
+table.res td.n{font-family:"IBM Plex Mono",monospace;text-align:right}
+
+.note{font-size:13px;color:var(--ink-soft);margin-top:10px}
+.timer{font-family:"IBM Plex Mono",monospace;font-size:13px}
+.timer b{font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="bar" id="bar" hidden>
+  <div class="bar-in">
+    <span class="tag" id="barProfile"></span>
+    <span class="tag" id="barDom"></span>
+    <span class="spacer"></span>
+    <span class="tag">Niveau <b id="barLvl">1</b></span>
+    <div class="ladder" id="ladder"></div>
+    <button class="btn ghost sm" id="quitBtn">Quitter</button>
+  </div>
+</div>
+
+<div class="wrap" id="app"></div>
+
+<script>
+"use strict";
+
+/* ========================= état & stockage ========================= */
+const Store = (()=>{
+  const mem = {};
+  return {
+    async get(k){ try{ const r = await window.storage.get(k); return r? JSON.parse(r.value):null; }catch(e){ return mem[k]??null; } },
+    async set(k,v){ try{ await window.storage.set(k, JSON.stringify(v)); }catch(e){ mem[k]=v; } }
+  };
+})();
+
+const PROFILES = {
+  adulte:{ label:"Adulte", base:3, cap:5 },
+  ado:{ label:"12–15 ans", base:2, cap:5 },
+  enfant:{ label:"8–11 ans", base:1, cap:4 }
+};
+
+const state = {
+  profile:"adulte",
+  levels:{},          // par exercice
+  ladder:[],          // historique {lvl, ok}
+  queue:[], idx:0,
+  log:[],             // {ex, dom, ok, lvl}
+  current:null,
+  answered:false
+};
+
+/* ========================= utilitaires ========================= */
+const R = {
+  int:(a,b)=>a+Math.floor(Math.random()*(b-a+1)),
+  pick:a=>a[Math.floor(Math.random()*a.length)],
+  shuffle:a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;},
+  sample:(a,n)=>R.shuffle(a).slice(0,n),
+  sign:()=>Math.random()<.5?-1:1
+};
+const el = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild;};
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ========================= dessin SVG ========================= */
+const INK='#2F3E9E', INK2='#14181F';
+
+function defs(id){
+  return `<defs><pattern id="h${id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <line x1="0" y1="0" x2="0" y2="6" stroke="${INK}" stroke-width="2.2"/></pattern></defs>`;
+}
+
+function shape(type,cx,cy,r,fill,pid,rot){
+  const st = fill==='solid'?INK : fill==='hatch'?`url(#h${pid})` : 'none';
+  const attrs = `fill="${st}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"`;
+  const tr = rot? ` transform="rotate(${rot} ${cx} ${cy})"`:'';
+  const poly = pts => `<polygon points="${pts.map(p=>p.join(',')).join(' ')}" ${attrs}${tr}/>`;
+  const ngon = (n,off)=>{
+    const p=[];for(let i=0;i<n;i++){const a=off+i*2*Math.PI/n;p.push([+(cx+r*Math.cos(a)).toFixed(1),+(cy+r*Math.sin(a)).toFixed(1)]);}
+    return poly(p);
+  };
+  switch(type){
+    case 'circle': return `<circle cx="${cx}" cy="${cy}" r="${r}" ${attrs}/>`;
+    case 'square': return poly([[cx-r,cy-r],[cx+r,cy-r],[cx+r,cy+r],[cx-r,cy+r]]);
+    case 'triangle': return ngon(3,-Math.PI/2);
+    case 'diamond': return poly([[cx,cy-r],[cx+r,cy],[cx,cy+r],[cx-r,cy]]);
+    case 'hexagon': return ngon(6,-Math.PI/2);
+    case 'cross': {
+      const w=r*.42;
+      return poly([[cx-w,cy-r],[cx+w,cy-r],[cx+w,cy-w],[cx+r,cy-w],[cx+r,cy+w],[cx+w,cy+w],[cx+w,cy+r],[cx-w,cy+r],[cx-w,cy+w],[cx-r,cy+w],[cx-r,cy-w],[cx-w,cy-w]]);
+    }
+    case 'star': {
+      const p=[];for(let i=0;i<10;i++){const rr=i%2?r*.45:r;const a=-Math.PI/2+i*Math.PI/5;p.push([+(cx+rr*Math.cos(a)).toFixed(1),+(cy+rr*Math.sin(a)).toFixed(1)]);}
+      return poly(p);
+    }
+  }
+  return '';
+}
+
+let PID=0;
+
+/* ========================= 1. MATRICES 3×3 ========================= */
+const M_SHAPES=['circle','square','triangle','diamond','hexagon'];
+const M_FILLS=['none','solid','hatch'];
+const M_SIZES=[0.62,0.82,1.0];
+const M_COUNTS=[1,2,3];
+
+function ruleFor(kind, vals){
+  // renvoie f(row,col) -> valeur, + description
+  if(kind==='const'){ const v=R.pick(vals); return {f:()=>v, d:'constante sur toute la grille'}; }
+  if(kind==='row'){ const p=R.sample(vals,3); return {f:(r)=>p[r], d:'une valeur par ligne'}; }
+  if(kind==='col'){ const p=R.sample(vals,3); return {f:(r,c)=>p[c], d:'une valeur par colonne'}; }
+  const p=R.sample(vals,3); // latin
+  return {f:(r,c)=>p[(r+c)%3], d:'les trois valeurs apparaissent une fois par ligne et une fois par colonne'};
+}
+
+function genMatrix(lvl){
+  const pid = ++PID;
+  const attrs = [
+    {key:'shape', label:'Forme', vals:M_SHAPES},
+    {key:'count', label:'Nombre', vals:M_COUNTS},
+    {key:'fill', label:'Remplissage', vals:M_FILLS},
+    {key:'size', label:'Taille', vals:M_SIZES}
+  ];
+  const nActive = Math.min(4, Math.max(1, lvl));
+  const active = R.sample(attrs, nActive);
+  const kinds = lvl<=2 ? ['row','col'] : lvl===3 ? ['row','col','latin'] : ['latin','latin','row','col'];
+  const rules={}, desc=[];
+  for(const a of attrs){
+    const isA = active.includes(a);
+    const r = ruleFor(isA?R.pick(kinds):'const', a.vals);
+    rules[a.key]=r.f;
+    desc.push(`<b>${a.label}</b> : ${r.d}`);
+  }
+  const cell=(r,c)=>({shape:rules.shape(r,c),count:rules.count(r,c),fill:rules.fill(r,c),size:rules.size(r,c)});
+  const grid=[[0,1,2],[0,1,2],[0,1,2]].map((row,r)=>row.map(c=>cell(r,c)));
+  const ans = grid[2][2];
+  const key = o=>`${o.shape}|${o.count}|${o.fill}|${o.size}`;
+  const seen=new Set([key(ans)]); const opts=[ans];
+  let guard=0;
+  while(opts.length<6 && guard++<400){
+    const d={...ans};
+    const n = Math.random()<.7?1:2;
+    for(const a of R.sample(attrs,n)) d[a.key]=R.pick(a.vals.filter(v=>v!==ans[a.key]));
+    if(!seen.has(key(d))){seen.add(key(d));opts.push(d);}
+  }
+  const shuffled=R.shuffle(opts);
+  return {
+    ex:'matrice', dom:'Raisonnement fluide', lvl,
+    consigne:'Quelle case complète la grille ?',
+    stim: matrixSVG(grid,pid),
+    options: shuffled.map(o=>({html:cellSVG(o,pid,72), val:key(o)})),
+    answer: key(ans),
+    optClass:'g2',
+    explain: desc.join(' · ')
+  };
+}
+
+function cellSVG(o,pid,size){
+  const s=size, mid=s/2;
+  let g='';
+  const base = s*0.30*o.size;
+  if(o.count===1) g=shape(o.shape,mid,mid,base,o.fill,pid);
+  else if(o.count===2) g=shape(o.shape,mid-s*.19,mid,base*.8,o.fill,pid)+shape(o.shape,mid+s*.19,mid,base*.8,o.fill,pid);
+  else g=shape(o.shape,mid,mid-s*.17,base*.68,o.fill,pid)+shape(o.shape,mid-s*.18,mid+s*.15,base*.68,o.fill,pid)+shape(o.shape,mid+s*.18,mid+s*.15,base*.68,o.fill,pid);
+  return `<svg viewBox="0 0 ${s} ${s}" width="${s}" height="${s}" xmlns="http://www.w3.org/2000/svg">${defs(pid)}${g}</svg>`;
+}
+
+function matrixSVG(grid,pid){
+  const C=96, P=8, S=C*3+P*2;
+  let out=`<svg viewBox="0 0 ${S} ${S}" width="${Math.min(S,330)}" xmlns="http://www.w3.org/2000/svg">${defs(pid)}`;
+  for(let r=0;r<3;r++)for(let c=0;c<3;c++){
+    const x=c*(C+P), y=r*(C+P);
+    const last = r===2&&c===2;
+    out+=`<rect x="${x}" y="${y}" width="${C}" height="${C}" fill="#fff" stroke="#C9C5B8" stroke-width="1" ${last?'stroke-dasharray="5 4"':''}/>`;
+    if(last){ out+=`<text x="${x+C/2}" y="${y+C/2+11}" text-anchor="middle" font-family="Fraunces,serif" font-size="34" fill="#C9C5B8">?</text>`; }
+    else {
+      const o=grid[r][c], mid=C/2, base=C*0.30*o.size;
+      if(o.count===1) out+=shape(o.shape,x+mid,y+mid,base,o.fill,pid);
+      else if(o.count===2) out+=shape(o.shape,x+mid-C*.19,y+mid,base*.8,o.fill,pid)+shape(o.shape,x+mid+C*.19,y+mid,base*.8,o.fill,pid);
+      else out+=shape(o.shape,x+mid,y+mid-C*.17,base*.68,o.fill,pid)+shape(o.shape,x+mid-C*.18,y+mid+C*.15,base*.68,o.fill,pid)+shape(o.shape,x+mid+C*.18,y+mid+C*.15,base*.68,o.fill,pid);
+    }
+  }
+  return out+'</svg>';
+}
+
+/* ========================= 2. SÉRIES NUMÉRIQUES ========================= */
+function genSeries(lvl){
+  const T=[];
+  T.push(()=>{const a=R.int(2,12),d=R.int(2,9)*R.sign();const s=[...Array(6)].map((_,i)=>a+i*d);return{s,e:`Chaque terme = précédent ${d>0?'+':'−'} ${Math.abs(d)}.`};});
+  T.push(()=>{const a=R.int(2,5),r=R.int(2,3);const s=[...Array(6)].map((_,i)=>a*Math.pow(r,i));return{s,e:`Chaque terme = précédent × ${r}.`};});
+  if(lvl>=2){
+    T.push(()=>{const a=R.int(1,9),d1=R.int(2,7),d2=R.int(2,7);const s=[a];for(let i=1;i<6;i++)s.push(s[i-1]+(i%2?d1:d2));return{s,e:`Alternance : +${d1}, +${d2}, +${d1}…`};});
+    T.push(()=>{const o=R.int(0,4);const s=[...Array(6)].map((_,i)=>(i+1+o)*(i+1+o));return{s,e:`Carrés successifs à partir de ${1+o}².`};});
+  }
+  if(lvl>=3){
+    T.push(()=>{const a=R.int(1,6),b=R.int(2,9);const s=[a,b];for(let i=2;i<6;i++)s.push(s[i-1]+s[i-2]);return{s,e:`Chaque terme = somme des deux précédents.`};});
+    T.push(()=>{const a=R.int(1,8),d=R.int(1,4),k=R.int(2,4);const s=[a];let dd=d;for(let i=1;i<6;i++){s.push(s[i-1]+dd);dd+=k;}return{s,e:`L'écart augmente de ${k} à chaque pas (+${d}, +${d+k}, +${d+2*k}…).`};});
+  }
+  if(lvl>=4){
+    T.push(()=>{const a=R.int(2,9),d=R.int(2,6),b=R.int(40,90),e2=R.int(3,8);
+      const s=[];for(let i=0;i<3;i++){s.push(a+i*d);s.push(b-i*e2);}
+      return{s,e:`Deux séries imbriquées : positions impaires +${d}, positions paires −${e2}.`};});
+    T.push(()=>{const a=R.int(2,5),r=R.int(2,3),c=R.int(1,7);const s=[...Array(6)].map((_,i)=>a*Math.pow(r,i)+c*i);return{s,e:`Terme = ${a}×${r}ⁿ + ${c}n.`};});
+  }
+  const g=R.pick(T)();
+  const ans=g.s[5], shown=g.s.slice(0,5);
+  const set=new Set([ans]); const opts=[ans];
+  const deltas=[1,-1,2,-2,3,-3,5,-5,10,-10];
+  let guard=0;
+  while(opts.length<4 && guard++<200){
+    let v;
+    if(Math.random()<.5) v=ans+R.pick(deltas)*(Math.abs(ans)>50?R.int(1,4):1);
+    else v=shown[4]+(shown[4]-shown[3])+R.pick([1,-1,2,-2]);
+    v=Math.round(v);
+    if(!set.has(v)&&v!==ans){set.add(v);opts.push(v);}
+  }
+  return {
+    ex:'serie', dom:'Raisonnement fluide', lvl,
+    consigne:'Quel nombre continue la suite ?',
+    stim:`<div class="mono" style="font-size:clamp(19px,4.4vw,27px);letter-spacing:.04em;text-align:center;padding:14px 0">${shown.join('  ·  ')}  ·  <span style="color:var(--ink-soft)">?</span></div>`,
+    options:R.shuffle(opts).map(v=>({text:String(v),val:String(v),mono:true})),
+    answer:String(ans), optClass:'g4', explain:g.e
+  };
+}
+
+/* ========================= 3. ROTATION MENTALE ========================= */
+function polyomino(n){
+  const cells=[[0,0]]; const has=(x,y)=>cells.some(c=>c[0]===x&&c[1]===y);
+  let guard=0;
+  while(cells.length<n && guard++<300){
+    const [x,y]=R.pick(cells);
+    const [dx,dy]=R.pick([[1,0],[-1,0],[0,1],[0,-1]]);
+    if(!has(x+dx,y+dy)) cells.push([x+dx,y+dy]);
+  }
+  return cells;
+}
+const norm = c=>{const mx=Math.min(...c.map(p=>p[0])),my=Math.min(...c.map(p=>p[1]));
+  return c.map(p=>[p[0]-mx,p[1]-my]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);};
+const kkey = c=>norm(c).map(p=>p.join(',')).join(';');
+const rot90 = c=>norm(c.map(([x,y])=>[y,-x]));
+const mirror = c=>norm(c.map(([x,y])=>[-x,y]));
+
+function genRotation(lvl){
+  const n = lvl<=1?4: lvl<=2?5: lvl<=3?6:7;
+  let base,rots,mirs,guard=0;
+  do{
+    base=polyomino(n);
+    rots=[base]; for(let i=0;i<3;i++) rots.push(rot90(rots[rots.length-1]));
+    const m=mirror(base); mirs=[m]; for(let i=0;i<3;i++) mirs.push(rot90(mirs[mirs.length-1]));
+    const rk=new Set(rots.map(kkey));
+    var chiral = mirs.every(x=>!rk.has(kkey(x)));
+  } while(!chiral && guard++<200);
+
+  const free = lvl>=3;
+  const ang = ()=> free? R.int(0,359) : R.pick([0,90,180,270]);
+  const correct = R.pick(rots.slice(1));
+  const wrongs = R.sample(mirs,3);
+  const opts = R.shuffle([{c:correct,ok:true},...wrongs.map(c=>({c,ok:false}))]);
+  return {
+    ex:'rotation', dom:'Visuospatial', lvl,
+    consigne:'Une seule figure est la figure de référence, simplement tournée. Les autres sont son image miroir.',
+    stim:`<div style="text-align:center"><div class="tag" style="margin-bottom:6px">Référence</div>${polySVG(base,120,0)}</div>`,
+    options:opts.map((o,i)=>({html:polySVG(o.c,104,ang()), val:String(i)})),
+    answer:String(opts.findIndex(o=>o.ok)),
+    optClass:'g4',
+    explain:`Les trois autres figures sont l'image miroir de la référence : aucune rotation dans le plan ne permet de les superposer.`
+  };
+}
+function polySVG(cells,size,angle){
+  const c=norm(cells);
+  const w=Math.max(...c.map(p=>p[0]))+1, h=Math.max(...c.map(p=>p[1]))+1;
+  const u=size/(Math.max(w,h)+1.6), ox=(size-w*u)/2, oy=(size-h*u)/2;
+  let g='';
+  for(const [x,y] of c) g+=`<rect x="${(ox+x*u).toFixed(1)}" y="${(oy+y*u).toFixed(1)}" width="${u.toFixed(1)}" height="${u.toFixed(1)}" fill="${INK}" fill-opacity=".16" stroke="${INK}" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(${angle} ${size/2} ${size/2})">${g}</g></svg>`;
+}
+
+/* ========================= 4. INTRUS (verbal) ========================= */
+const CATS = {
+  "instruments de musique":["violon","piano","trompette","guitare","flûte","tambour","harpe","clarinette"],
+  "fruits":["pomme","poire","cerise","banane","abricot","raisin","fraise","pêche"],
+  "métaux":["fer","cuivre","zinc","plomb","argent","étain","nickel","or"],
+  "figures géométriques":["carré","triangle","losange","hexagone","cercle","trapèze","pentagone"],
+  "sentiments":["joie","colère","tristesse","peur","honte","surprise","dégoût"],
+  "moyens de transport":["train","avion","bateau","voiture","tramway","hélicoptère","bicyclette"],
+  "unités de mesure":["mètre","litre","gramme","seconde","ampère","kelvin","joule"],
+  "oiseaux":["moineau","aigle","corbeau","pigeon","hibou","mouette","héron"],
+  "arbres":["chêne","hêtre","bouleau","sapin","érable","platane","saule"],
+  "outils":["marteau","tournevis","scie","pince","lime","rabot","burin"],
+  "planètes":["mercure","vénus","mars","jupiter","saturne","neptune","uranus"],
+  "verbes de parole":["dire","crier","murmurer","chuchoter","déclarer","affirmer","répliquer"],
+  "opérations mentales":["comparer","déduire","classer","mémoriser","analyser","synthétiser"],
+  "phénomènes météo":["pluie","neige","grêle","brouillard","orage","verglas","bruine"]
+};
+function genIntrus(lvl){
+  const keys=Object.keys(CATS);
+  const [a,b]=R.sample(keys,2);
+  const n = lvl<=2?4:5;
+  const ins=R.sample(CATS[a],n-1);
+  const out=R.pick(CATS[b].filter(w=>!ins.includes(w)));
+  const opts=R.shuffle([...ins,out]);
+  return {
+    ex:'intrus', dom:'Compréhension verbale', lvl,
+    consigne:"Quel mot n'appartient pas au même ensemble que les autres ?",
+    stim:'',
+    options:opts.map(w=>({text:w,val:w})),
+    answer:out, optClass: n<=4?'g4':'g2',
+    explain:`« ${ins.join(' », « ')} » sont des ${a}. « ${out} » relève des ${b}.`
+  };
+}
+
+/* ========================= 5. DIFFÉRENCES ========================= */
+function genDiff(lvl){
+  const pid=++PID;
+  const W=300,H=300;
+  const nSh = [7,9,11,13,15][Math.min(lvl-1,4)];
+  const nDiff = [3,3,4,4,5][Math.min(lvl-1,4)];
+  const types=['circle','square','triangle','diamond','hexagon','cross','star'];
+  const A=[];
+  for(let i=0;i<nSh;i++){
+    let x,y,ok,guard=0;
+    do{ x=R.int(34,W-34); y=R.int(34,H-34);
+        ok=A.every(s=>Math.hypot(s.x-x,s.y-y)>52); }while(!ok&&guard++<60);
+    A.push({type:R.pick(types),x,y,r:R.int(15,26),fill:R.pick(['none','solid','hatch']),rot:R.pick([0,0,0,30,45])});
+  }
+  const B=A.map(s=>({...s}));
+  const idxs=R.sample([...A.keys()],nDiff);
+  const spots=[];
+  const subtle = lvl>=4;
+  for(const i of idxs){
+    const kind=R.pick(subtle?['size','fill','type','move','rot']:['size','fill','type','move','remove']);
+    const s=B[i];
+    if(kind==='size'){ s.r=Math.round(s.r*(subtle?R.pick([0.78,1.26]):R.pick([0.6,1.5]))); spots.push({x:s.x,y:s.y}); }
+    else if(kind==='fill'){ s.fill=R.pick(['none','solid','hatch'].filter(f=>f!==s.fill)); spots.push({x:s.x,y:s.y}); }
+    else if(kind==='type'){ s.type=R.pick(types.filter(t=>t!==s.type)); spots.push({x:s.x,y:s.y}); }
+    else if(kind==='rot'){ s.rot=(s.rot+45)%90+15; spots.push({x:s.x,y:s.y}); }
+    else if(kind==='move'){ const ox=s.x,oy=s.y; s.x=Math.max(30,Math.min(W-30,s.x+R.int(22,40)*R.sign())); s.y=Math.max(30,Math.min(H-30,s.y+R.int(14,32)*R.sign())); spots.push({x:s.x,y:s.y,alt:{x:ox,y:oy}}); }
+    else { s.gone=true; spots.push({x:s.x,y:s.y}); }
+  }
+  const draw = list => `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${defs(pid)}`+
+    list.filter(s=>!s.gone).map(s=>shape(s.type,s.x,s.y,s.r,s.fill,pid,s.rot)).join('')+`</svg>`;
+  return { ex:'differences', dom:'Vitesse de traitement', lvl, kind:'diff',
+    consigne:`Repérez les ${nDiff} différences. Cliquez dessus sur l'une ou l'autre planche.`,
+    svgA:draw(A), svgB:draw(B), spots, W, H, nDiff,
+    explain:'' };
+}
+
+/* ========================= 6. BLOCS DE CORSI ========================= */
+function genCorsi(lvl){
+  const back = lvl>=4;
+  const len = Math.min(9, 2 + lvl + (back?0:1));
+  const pos=[];
+  let guard=0;
+  while(pos.length<9 && guard++<800){
+    const x=R.int(4,282), y=R.int(4,242);
+    if(pos.every(p=>Math.hypot(p.x-x,p.y-y)>76)) pos.push({x,y});
+  }
+  while(pos.length<9) pos.push({x:R.int(4,282),y:R.int(4,242)});
+  const seq=[]; while(seq.length<len){ const i=R.int(0,8); if(seq[seq.length-1]!==i) seq.push(i); }
+  return { ex:'corsi', dom:'Mémoire de travail', lvl, kind:'corsi', pos, seq, back,
+    consigne: back?'Mémorisez la séquence, puis reproduisez-la à l\'envers.':'Mémorisez la séquence, puis reproduisez-la dans le même ordre.',
+    explain:'' };
+}
+
+/* ========================= 7. RECHERCHE DE SYMBOLES ========================= */
+function glyph(seed,size){
+  const P=[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]];
+  const u=size/3.4, ox=size/2-u, oy=size/2-u;
+  const pt=i=>[ox+P[i][0]*u, oy+P[i][1]*u];
+  let g='';
+  for(const [a,b] of seed){ const p=pt(a),q=pt(b);
+    g+=`<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${INK2}" stroke-width="2.4" stroke-linecap="round"/>`; }
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+function randGlyph(nSeg){
+  const s=[]; const key=new Set();
+  let guard=0;
+  while(s.length<nSeg && guard++<80){
+    const a=R.int(0,8), b=R.int(0,8);
+    if(a===b) continue;
+    const k=[a,b].sort().join('-');
+    if(key.has(k)) continue;
+    key.add(k); s.push([a,b]);
+  }
+  return s;
+}
+const gkey = s=>s.map(x=>[...x].sort().join('-')).sort().join('|');
+
+function genSymbol(lvl){
+  const nSeg = lvl<=1?3: lvl<=3?4:5;
+  const groupN = lvl<=2?4:5;
+  const pool=[]; const seen=new Set();
+  while(pool.length<12){ const g=randGlyph(nSeg); const k=gkey(g); if(!seen.has(k)){seen.add(k);pool.push(g);} }
+  const targets=R.sample(pool,2);
+  const present=Math.random()<.5;
+  let group;
+  if(present){
+    const t=R.pick(targets);
+    const others=R.sample(pool.filter(g=>!targets.includes(g)),groupN-1);
+    group=R.shuffle([t,...others]);
+  } else {
+    group=R.sample(pool.filter(g=>!targets.includes(g)),groupN);
+  }
+  return {targets,group,present};
+}
+
+/* ========================= moteur ========================= */
+const GENS = {
+  matrice:{gen:genMatrix, name:'Matrices', dom:'Raisonnement fluide', ds:'Compléter une grille 3×3 régie par des règles cachées.'},
+  serie:{gen:genSeries, name:'Suites numériques', dom:'Raisonnement fluide', ds:'Trouver la loi qui engendre la suite.'},
+  rotation:{gen:genRotation, name:'Rotation mentale', dom:'Visuospatial', ds:'Distinguer une rotation d\'une image miroir.'},
+  differences:{gen:genDiff, name:'Différences', dom:'Vitesse de traitement', ds:'Comparer deux planches et repérer les écarts.'},
+  corsi:{gen:genCorsi, name:'Blocs de Corsi', dom:'Mémoire de travail', ds:'Retenir puis reproduire une séquence spatiale.'},
+  intrus:{gen:genIntrus, name:'Intrus', dom:'Compréhension verbale', ds:'Isoler le mot qui rompt la catégorie.'},
+  symboles:{gen:null, name:'Recherche de symboles', dom:'Vitesse de traitement', ds:'Bloc chronométré de 60 s. Cible présente ou absente ?'}
+};
+const MIXED = ['matrice','serie','rotation','intrus','corsi','differences'];
+
+function lvlOf(ex){
+  if(state.levels[ex]==null) state.levels[ex]=PROFILES[state.profile].base;
+  return state.levels[ex];
+}
+function bump(ex, ok){
+  const cap=PROFILES[state.profile].cap;
+  const cur=lvlOf(ex);
+  if(ok) state.levels[ex]=Math.min(cap,cur+1);
+  else { state.levels[ex+'_miss']=(state.levels[ex+'_miss']||0)+1;
+    if(state.levels[ex+'_miss']>=2){ state.levels[ex]=Math.max(1,cur-1); state.levels[ex+'_miss']=0; } }
+  if(ok) state.levels[ex+'_miss']=0;
+  state.ladder.push({lvl:cur, ok});
+  if(state.ladder.length>26) state.ladder.shift();
+  drawLadder();
+  Store.set('levels_'+state.profile, state.levels);
+}
+function drawLadder(){
+  const l=document.getElementById('ladder');
+  l.innerHTML=state.ladder.map(s=>`<i class="${s.ok?'ok':'ko'}" style="height:${4+s.lvl*4.4}px"></i>`).join('');
+}
+
+/* ========================= vues ========================= */
+const app=document.getElementById('app');
+const bar=document.getElementById('bar');
+
+function showBar(on){ bar.hidden=!on; }
+
+async function home(){
+  showBar(false);
+  const saved=await Store.get('levels_'+state.profile);
+  if(saved) state.levels=saved;
+  app.innerHTML=`
+  <div class="hero">
+    <div class="eyebrow">Planches générées à la volée · rien n'est mémorisable</div>
+    <h1>Atelier cognitif</h1>
+    <p class="lede">Chaque exercice est reconstruit par un générateur paramétré : la difficulté s'ajuste à chaque réponse, et vous ne reverrez jamais deux fois la même planche. Cinq domaines, d'après la structure du WISC-V et du WAIS-5.</p>
+  </div>
+
+  <div class="sect">
+    <h3>Profil</h3>
+    <div class="seg" id="segProfile">
+      ${Object.entries(PROFILES).map(([k,v])=>`<button data-p="${k}" aria-pressed="${state.profile===k}">${v.label}</button>`).join('')}
+    </div>
+    <p class="note">Le profil fixe le niveau de départ et le plafond de difficulté. La progression est enregistrée séparément pour chacun.</p>
+  </div>
+
+  <div class="sect">
+    <h3>Séance mixte</h3>
+    <div class="row">
+      <button class="btn" data-mix="12">12 planches, tous domaines</button>
+      <button class="btn ghost" data-mix="24">24 planches</button>
+    </div>
+  </div>
+
+  <div class="sect">
+    <h3>Exercice seul</h3>
+    <div class="cards">
+      ${Object.entries(GENS).map(([k,g])=>`
+        <button class="card" data-ex="${k}">
+          <span class="dom">${g.dom}</span>
+          <span class="nm">${g.name}</span>
+          <span class="ds">${g.ds}</span>
+          <span class="tag" style="margin-top:6px">Niveau atteint : <b>${state.levels[k]??PROFILES[state.profile].base}</b></span>
+        </button>`).join('')}
+    </div>
+  </div>
+
+  <hr class="rule">
+  <p class="note" style="margin-top:16px">Outil d'entraînement et de familiarisation au format. Il ne produit pas de QI : un QI suppose un étalonnage sur un échantillon normatif par tranche d'âge, ce qui n'existe pas ici. Les scores affichés sont des scores bruts, comparables à eux-mêmes dans le temps, pas à une population.</p>
+  `;
+  app.querySelector('#segProfile').onclick=e=>{
+    const b=e.target.closest('[data-p]'); if(!b)return;
+    state.profile=b.dataset.p; state.levels={}; home();
+  };
+  app.onclick=e=>{
+    const mix=e.target.closest('[data-mix]');
+    if(mix){ startMixed(+mix.dataset.mix); return; }
+    const ex=e.target.closest('[data-ex]');
+    if(ex){ ex.dataset.ex==='symboles'? startSymbols() : startSolo(ex.dataset.ex); }
+  };
+}
+
+function startMixed(n){
+  state.queue=[]; state.log=[]; state.idx=0; state.ladder=[];
+  const pool=[];
+  while(pool.length<n) pool.push(...R.shuffle(MIXED));
+  state.queue=pool.slice(0,n);
+  showBar(true); drawLadder(); nextItem();
+}
+function startSolo(ex){
+  state.queue=Array(10).fill(ex); state.log=[]; state.idx=0; state.ladder=[];
+  showBar(true); drawLadder(); nextItem();
+}
+
+document.getElementById('quitBtn').onclick=()=>{ stopTimers(); home(); };
+
+function nextItem(){
+  if(state.idx>=state.queue.length) return results();
+  const ex=state.queue[state.idx];
+  const item=GENS[ex].gen(lvlOf(ex));
+  state.current=item; state.answered=false;
+  document.getElementById('barProfile').innerHTML=`<b>${PROFILES[state.profile].label}</b>`;
+  document.getElementById('barDom').innerHTML=`${item.dom} · <b>${state.idx+1}/${state.queue.length}</b>`;
+  document.getElementById('barLvl').textContent=item.lvl;
+  if(item.kind==='corsi') return renderCorsi(item);
+  if(item.kind==='diff') return renderDiff(item);
+  renderMCQ(item);
+}
+
+/* ---- QCM générique ---- */
+function renderMCQ(it){
+  app.innerHTML=`
+  <div class="plate">
+    <div class="plate-head"><h2>${GENS[it.ex].name}</h2><span class="tag">Niveau ${it.lvl}</span></div>
+    <p class="consigne">${it.consigne}</p>
+    ${it.stim?`<div class="stim">${it.stim}</div>`:''}
+    <div class="opts ${it.optClass}" id="opts">
+      ${it.options.map((o,i)=>`<button class="opt" data-v="${esc(o.val)}" data-i="${i}">
+        <span class="k">${i+1}</span>
+        ${o.html? o.html : `<span class="opt-text ${o.mono?'mono':''}">${esc(o.text)}</span>`}
+      </button>`).join('')}
+    </div>
+    <div id="fb"></div>
+  </div>`;
+  const opts=document.getElementById('opts');
+  opts.onclick=e=>{ const b=e.target.closest('.opt'); if(b&&!state.answered) answerMCQ(b.dataset.v); };
+  window.onkeydown=e=>{
+    if(state.answered){ if(e.key==='Enter'||e.key===' '){e.preventDefault();advance();} return; }
+    const n=parseInt(e.key,10);
+    if(n>=1&&n<=it.options.length){ answerMCQ(it.options[n-1].val); }
+  };
+}
+function answerMCQ(v){
+  state.answered=true;
+  const it=state.current, ok=v===it.answer;
+  document.querySelectorAll('.opt').forEach(b=>{
+    b.disabled=true;
+    if(b.dataset.v===it.answer) b.classList.add('right');
+    else if(b.dataset.v===v) b.classList.add('wrong');
+  });
+  state.log.push({ex:it.ex,dom:it.dom,ok,lvl:it.lvl});
+  bump(it.ex,ok);
+  feedback(ok, it.explain);
+}
+function feedback(ok, why){
+  document.getElementById('fb').innerHTML=`
+    <div class="fb">
+      <span class="verdict ${ok?'ok':'ko'}">${ok?'Juste':'Faux'}</span>
+      <span class="why">${why||''}</span>
+      <button class="btn" id="nextBtn">Suivant</button>
+    </div>`;
+  const b=document.getElementById('nextBtn'); b.focus();
+  b.onclick=advance;
+}
+function advance(){ window.onkeydown=null; state.idx++; nextItem(); }
+
+/* ---- Corsi ---- */
+let corsiTimers=[];
+function stopTimers(){ corsiTimers.forEach(clearTimeout); corsiTimers=[]; if(symTimer) clearInterval(symTimer); symTimer=null; window.onkeydown=null; }
+function renderCorsi(it){
+  stopTimers();
+  app.innerHTML=`
+  <div class="plate">
+    <div class="plate-head"><h2>Blocs de Corsi</h2><span class="tag">Niveau ${it.lvl} · ${it.seq.length} blocs${it.back?' · à l\'envers':''}</span></div>
+    <p class="consigne">${it.consigne}</p>
+    <div class="corsi" id="corsi">
+      ${it.pos.map((p,i)=>`<div class="blk" data-i="${i}" style="left:${p.x}px;top:${p.y}px"></div>`).join('')}
+    </div>
+    <p class="consigne" id="corsiState" style="text-align:center;margin-top:14px">Observez…</p>
+    <div id="fb"></div>
+  </div>`;
+  const blks=[...document.querySelectorAll('.blk')];
+  const speed = state.profile==='enfant'?780:620;
+  let t=400;
+  it.seq.forEach((i,k)=>{
+    corsiTimers.push(setTimeout(()=>{blks[i].classList.add('lit');},t));
+    corsiTimers.push(setTimeout(()=>{blks[i].classList.remove('lit');},t+speed*0.62));
+    t+=speed;
+  });
+  corsiTimers.push(setTimeout(()=>{
+    document.getElementById('corsiState').textContent = it.back?'À vous — à l\'envers.':'À vous.';
+    const target = it.back? it.seq.slice().reverse() : it.seq;
+    const got=[];
+    document.getElementById('corsi').onclick=e=>{
+      const b=e.target.closest('.blk'); if(!b||state.answered) return;
+      const i=+b.dataset.i; got.push(i);
+      b.classList.add('pick'); setTimeout(()=>b.classList.remove('pick'),180);
+      if(got.length===target.length){
+        state.answered=true;
+        const ok=got.every((v,k)=>v===target[k]);
+        target.forEach((v,k)=>{ blks[v].classList.add(got[k]===v?'good':'bad'); });
+        state.log.push({ex:'corsi',dom:'Mémoire de travail',ok,lvl:it.lvl});
+        bump('corsi',ok);
+        feedback(ok, ok?`Séquence de ${target.length} blocs restituée.`:`Séquence attendue : ${target.map(x=>x+1).join(' → ')}. Vous avez donné : ${got.map(x=>x+1).join(' → ')}.`);
+        window.onkeydown=e2=>{ if(e2.key==='Enter'){e2.preventDefault();advance();} };
+      }
+    };
+  },t+200));
+}
+
+/* ---- Différences ---- */
+function renderDiff(it){
+  const found=new Set(); const misses=[];
+  app.innerHTML=`
+  <div class="plate">
+    <div class="plate-head"><h2>Différences</h2><span class="tag">Niveau ${it.lvl} · <span id="dCount">0</span>/${it.nDiff}</span></div>
+    <p class="consigne">${it.consigne}</p>
+    <div class="diffwrap">
+      <div class="diffpan" data-p="a">${it.svgA}<svg class="ov" style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 ${it.W} ${it.H}"></svg></div>
+      <div class="diffpan" data-p="b">${it.svgB}<svg class="ov" style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 ${it.W} ${it.H}"></svg></div>
+    </div>
+    <div class="row right" style="margin-top:14px"><button class="btn ghost" id="giveUp">Je m'arrête</button></div>
+    <div id="fb"></div>
+  </div>`;
+  const ovs=[...document.querySelectorAll('.ov')];
+  const mark=(x,y,cls)=>ovs.forEach(o=>o.insertAdjacentHTML('beforeend',
+    `<circle cx="${x}" cy="${y}" r="24" fill="none" stroke="${cls==='ok'?'#0F6B5C':'#A33B2A'}" stroke-width="2.5" ${cls==='ok'?'':'stroke-dasharray="4 4"'}/>`));
+
+  document.querySelectorAll('.diffpan').forEach(p=>{
+    p.onclick=ev=>{
+      if(state.answered) return;
+      const r=p.getBoundingClientRect();
+      const x=(ev.clientX-r.left)/r.width*it.W, y=(ev.clientY-r.top)/r.height*it.H;
+      let hit=-1;
+      it.spots.forEach((s,i)=>{
+        if(found.has(i)) return;
+        const d1=Math.hypot(s.x-x,s.y-y);
+        const d2=s.alt?Math.hypot(s.alt.x-x,s.alt.y-y):999;
+        if(Math.min(d1,d2)<34) hit=i;
+      });
+      if(hit>=0){
+        found.add(hit); const s=it.spots[hit];
+        mark(s.x,s.y,'ok'); if(s.alt) mark(s.alt.x,s.alt.y,'ok');
+        document.getElementById('dCount').textContent=found.size;
+        if(found.size===it.nDiff) finishDiff();
+      } else { misses.push(1); ovs[0].insertAdjacentHTML('beforeend',
+        `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="12" fill="none" stroke="#A33B2A" stroke-width="1.6" opacity=".5"/>`); }
+    };
+  });
+  document.getElementById('giveUp').onclick=finishDiff;
+
+  function finishDiff(){
+    state.answered=true;
+    it.spots.forEach((s,i)=>{ if(!found.has(i)) mark(s.x,s.y,'ko'); });
+    const ok=found.size===it.nDiff;
+    state.log.push({ex:'differences',dom:'Vitesse de traitement',ok,lvl:it.lvl});
+    bump('differences',ok);
+    feedback(ok, `${found.size} différence${found.size>1?'s':''} sur ${it.nDiff}${misses.length?` · ${misses.length} clic${misses.length>1?'s':''} à côté`:''}. Les cercles pointillés marquent ce qui restait.`);
+    window.onkeydown=e=>{ if(e.key==='Enter'){e.preventDefault();advance();} };
+  }
+}
+
+/* ---- Recherche de symboles (bloc 60 s) ---- */
+let symTimer=null;
+function startSymbols(){
+  stopTimers();
+  state.log=[]; state.ladder=[];
+  showBar(true); drawLadder();
+  const DUR=60;
+  let left=DUR, hits=0, errs=0, done=0;
+  const lvl=lvlOf('symboles');
+  document.getElementById('barProfile').innerHTML=`<b>${PROFILES[state.profile].label}</b>`;
+  document.getElementById('barDom').textContent='Vitesse de traitement';
+  document.getElementById('barLvl').textContent=lvl;
+
+  const shell=()=>{
+    app.innerHTML=`
+    <div class="plate">
+      <div class="plate-head"><h2>Recherche de symboles</h2>
+        <span class="timer">Reste <b id="tLeft">${left}</b> s · <span id="tScore">0</span> pts</span></div>
+      <p class="consigne">Un des deux symboles cibles apparaît-il dans le groupe ? Touches <b>O</b> / <b>N</b>.</p>
+      <div id="trial"></div>
+    </div>`;
+  };
+  shell();
+
+  function drawTrial(){
+    const t=genSymbol(lvlOf('symboles'));
+    const box=g=>`<span style="display:inline-flex;background:#fff;border:1px solid var(--rule);border-radius:3px;padding:2px;margin:3px">${glyph(g,46)}</span>`;
+    document.getElementById('trial').innerHTML=`
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:8px 0 18px">
+        <div style="text-align:center"><div class="tag">Cibles</div>${t.targets.map(box).join('')}</div>
+        <div style="width:1px;height:56px;background:var(--rule)"></div>
+        <div style="text-align:center"><div class="tag">Groupe</div>${t.group.map(box).join('')}</div>
+      </div>
+      <div class="opts g2">
+        <button class="opt" data-a="1"><span class="opt-text">Oui — présent</span></button>
+        <button class="opt" data-a="0"><span class="opt-text">Non — absent</span></button>
+      </div>`;
+    document.getElementById('trial').onclick=e=>{
+      const b=e.target.closest('[data-a]'); if(!b) return; respond(b.dataset.a==='1', t.present);
+    };
+    window.onkeydown=e=>{
+      const k=e.key.toLowerCase();
+      if(k==='o') respond(true,t.present);
+      if(k==='n') respond(false,t.present);
+    };
+  }
+  function respond(ans, truth){
+    done++;
+    if(ans===truth){ hits++; bump('symboles',true); } else { errs++; bump('symboles',false); }
+    document.getElementById('tScore').textContent=Math.max(0,hits-errs);
+    document.getElementById('barLvl').textContent=lvlOf('symboles');
+    drawTrial();
+  }
+  drawTrial();
+  symTimer=setInterval(()=>{
+    left--; const t=document.getElementById('tLeft'); if(t) t.textContent=left;
+    if(left<=0){
+      clearInterval(symTimer); symTimer=null; window.onkeydown=null;
+      app.innerHTML=`<div class="plate">
+        <div class="plate-head"><h2>Bloc terminé</h2></div>
+        <table class="res">
+          <tr><th>Essais</th><td class="n">${done}</td></tr>
+          <tr><th>Corrects</th><td class="n">${hits}</td></tr>
+          <tr><th>Erreurs</th><td class="n">${errs}</td></tr>
+          <tr><th>Score net</th><td class="n"><b>${Math.max(0,hits-errs)}</b></td></tr>
+          <tr><th>Niveau atteint</th><td class="n">${lvlOf('symboles')}</td></tr>
+        </table>
+        <p class="note">Le score net (corrects − erreurs) pénalise la précipitation. Comparez-le à vos blocs précédents, pas à une norme.</p>
+        <div class="row" style="margin-top:16px"><button class="btn" id="again">Refaire un bloc</button><button class="btn ghost" id="back">Accueil</button></div>
+      </div>`;
+      document.getElementById('again').onclick=startSymbols;
+      document.getElementById('back').onclick=()=>{stopTimers();home();};
+    }
+  },1000);
+}
+
+/* ---- résultats ---- */
+function results(){
+  stopTimers();
+  const byDom={};
+  for(const l of state.log){ (byDom[l.dom] ||= {n:0,ok:0,lvl:0}); byDom[l.dom].n++; if(l.ok)byDom[l.dom].ok++; byDom[l.dom].lvl=Math.max(byDom[l.dom].lvl,l.lvl); }
+  const tot=state.log.length, ok=state.log.filter(l=>l.ok).length;
+  app.innerHTML=`
+  <div class="plate">
+    <div class="plate-head"><h2>Séance terminée</h2><span class="tag">${ok}/${tot} justes</span></div>
+    <table class="res" style="margin-top:12px">
+      <tr><th>Domaine</th><th style="text-align:right">Réussite</th><th style="text-align:right">Niveau max</th></tr>
+      ${Object.entries(byDom).map(([d,v])=>`<tr><td>${d}</td><td class="n">${v.ok}/${v.n}</td><td class="n">${v.lvl}</td></tr>`).join('')}
+    </table>
+    <p class="note">Le niveau max atteint est l'indicateur utile : il monte à chaque réussite et redescend après deux échecs consécutifs, donc il se stabilise autour de votre seuil réel du moment. Le pourcentage de réussite, lui, tend vers ~60 % par construction — c'est normal et voulu.</p>
+    <div class="row" style="margin-top:18px">
+      <button class="btn" id="again">Nouvelle séance</button>
+      <button class="btn ghost" id="back">Accueil</button>
+    </div>
+  </div>`;
+  document.getElementById('again').onclick=()=>startMixed(state.queue.length);
+  document.getElementById('back').onclick=home;
+}
+
+home();
+</script>
+</body>
+</html>

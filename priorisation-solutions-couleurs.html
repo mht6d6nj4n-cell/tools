@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Priorisation des solutions</title>
+<style>
+  :root {
+    --ink:#16223b; --ink2:#5b6b85; --muted:#8b97ab; --faint:#a3adbe;
+    --line:#dde3ea; --bg:#f4f6f8;
+    --accent:#2b5a8c; --ok:#2b8c72; --danger:#c65b4a;
+    --mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); padding:22px; }
+  #root { max-width:1000px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+
+  .row-between { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  h1 { font-size:18px; font-weight:700; margin:0; letter-spacing:-0.01em; }
+  .stats { font-size:12.5px; color:var(--ink2); margin-top:2px; }
+  .ok { color:var(--ok); }
+
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; }
+  button { font-family:inherit; cursor:pointer; }
+  .btn-ghost, .btn-primary { display:inline-flex; align-items:center; gap:6px; font-size:12.5px;
+    font-weight:600; padding:6px 12px; border-radius:6px; }
+  .btn-ghost { border:1px solid var(--line); background:#fff; color:var(--accent); }
+  .btn-ghost:hover { border-color:var(--accent); }
+  .btn-ghost.dashed { border-style:dashed; border-color:#c3ceda; }
+  .btn-primary { border:none; background:var(--accent); color:#fff; }
+  .icon-btn { border:none; background:none; color:var(--muted); font-size:12px; padding:2px 5px; border-radius:4px; }
+  .icon-btn:hover { color:var(--ink); background:#eef2f7; }
+  .icon-btn.danger:hover { color:var(--danger); }
+
+  .panel { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .panel.accent { border-color:var(--accent); }
+  .panel-hint { font-size:12.5px; color:var(--ink2); margin-bottom:8px; line-height:1.5; }
+  textarea, input[type=text] { font-family:inherit; font-size:13px; border:1px solid var(--line);
+    border-radius:6px; padding:7px 10px; outline:none; box-sizing:border-box; background:#fff; color:inherit; }
+  textarea:focus, input[type=text]:focus { border-color:var(--accent); }
+  textarea { width:100%; resize:vertical; }
+  textarea.mono { font-family:var(--mono); font-size:12px; }
+  .field-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+  .checkbox-label { font-size:12px; color:var(--ink2); display:flex; align-items:center; gap:5px; }
+  .import-error { font-size:12px; color:var(--danger); margin-top:8px; }
+
+  .tagbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-height:22px; }
+  .tagbar .label { font-size:11.5px; color:var(--muted); }
+  .tag-chip-btn { font-size:11.5px; padding:3px 9px; border-radius:999px; font-weight:600;
+    border:1px solid; background:none; }
+
+  .groups { display:flex; flex-direction:column; gap:14px; }
+  .group-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; position:relative; }
+  .chevron { border:none; background:none; color:var(--muted); padding:0; width:16px; font-size:11px; }
+  .swatch { width:14px; height:14px; border-radius:4px; flex:none; border:1px solid rgba(0,0,0,.12);
+    padding:0; cursor:pointer; }
+  .swatch:hover { outline:2px solid rgba(0,0,0,.12); outline-offset:1px; }
+  .swatch.locked { cursor:default; }
+  .group-name { font-size:13px; font-weight:700; cursor:text; padding:1px 4px; border-radius:4px; }
+  .group-name:hover { background:#eef2f7; }
+  .group-name.virtual { color:var(--muted); cursor:default; }
+  .group-name.virtual:hover { background:none; }
+  .group-name-input { font-size:13px; font-weight:700; padding:1px 6px; }
+  .group-count { font-size:11.5px; color:var(--faint); }
+  .group-actions { margin-left:auto; display:flex; gap:4px; }
+
+  .palette-pop { position:absolute; z-index:60; top:22px; left:22px; background:#fff;
+    border:1px solid var(--line); border-radius:8px; padding:8px; box-shadow:0 6px 20px rgba(20,34,59,.14);
+    display:grid; grid-template-columns:repeat(6, 22px); gap:6px; }
+  .palette-pop button { width:22px; height:22px; border-radius:5px; border:1px solid rgba(0,0,0,.12); padding:0; }
+  .palette-pop button.on { outline:2px solid var(--ink); outline-offset:1px; }
+
+  .group-body { display:flex; flex-direction:column; gap:6px; border:1.5px dashed transparent;
+    border-radius:8px; padding:2px; }
+  .group-body.dragover { border-color:var(--accent); background:#eef4fa; }
+  .group-empty { font-size:11.5px; color:#c3ceda; padding:8px 12px; font-style:italic; }
+
+  .item-row { display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line);
+    border-left:4px solid var(--line); border-radius:8px; padding:9px 12px; }
+  .item-row.dragover { border-color:var(--accent); box-shadow:0 -2px 0 -1px var(--accent); }
+  .item-row.dragging { opacity:0.35; }
+  .grip { color:#c3ceda; cursor:grab; font-size:14px; line-height:1; padding:2px 1px; flex:none; user-select:none; }
+  .grip:active { cursor:grabbing; }
+  .rank { font-family:var(--mono); font-size:12px; color:var(--muted); width:20px; text-align:right; flex:none; }
+  .item-main { flex:1 1 200px; min-width:0; }
+  .item-name { font-size:13.5px; font-weight:600; cursor:text; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; padding:1px 4px; margin-left:-4px; border-radius:4px; }
+  .item-name:hover { background:#eef2f7; }
+  .item-name-input { font-size:13.5px; font-weight:600; width:100%; padding:1px 5px; }
+  .item-vendor { font-size:11.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item-tags { flex:2 1 220px; display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+  .tag-chip { font-size:11px; font-weight:600; padding:2px 6px 2px 8px; border-radius:999px;
+    border:1px solid; display:inline-flex; align-items:center; gap:4px; }
+  .tag-chip button { border:none; background:none; padding:0; opacity:0.55; color:inherit; font-size:11px; line-height:1; }
+  .tag-chip button:hover { opacity:1; }
+  .tag-add-btn { font-size:11px; border:1px dashed #c3ceda; border-radius:999px; padding:2px 8px;
+    background:none; color:var(--muted); }
+  .tag-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .tag-add-input { font-size:11px; border:1px solid var(--accent); border-radius:999px; padding:2px 8px;
+    width:110px; font-family:inherit; outline:none; }
+  .bucket-select { font-size:11px; border:1px solid var(--line); border-radius:6px; padding:3px 4px;
+    color:var(--ink2); background:#fff; flex:none; max-width:120px; font-family:inherit; }
+  .delete-btn { border:none; background:none; color:#c3ceda; flex:none; padding:2px 4px; font-size:12px; }
+  .delete-btn:hover { color:var(--danger); }
+
+  .empty-state { padding:28px; text-align:center; color:var(--muted); font-size:13px; background:#fff;
+    border:1px dashed var(--line); border-radius:8px; }
+  .footnote { font-size:11px; color:var(--faint); line-height:1.6; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<input id="fileInputImport" type="file" accept=".json,.csv,.txt" style="display:none">
+<datalist id="tag-suggestions"></datalist>
+
+<script>
+"use strict";
+
+const LS_KEY = "priorisation-solutions:standalone-v1";
+
+const TAG_PALETTE = [
+  { bg:"#e8eef5", fg:"#2b5a8c", bd:"#c3d4e6" },
+  { bg:"#eef0e8", fg:"#5a6b2b", bd:"#d4d9c3" },
+  { bg:"#f5ece8", fg:"#8c4a2b", bd:"#e6c9bd" },
+  { bg:"#ece8f5", fg:"#5a2b8c", bd:"#d0c3e6" },
+  { bg:"#e8f2f0", fg:"#2b8c72", bd:"#c3e6db" },
+  { bg:"#f5eee8", fg:"#8c6a2b", bd:"#e6d5bd" },
+  { bg:"#f0e8f5", fg:"#7a2b8c", bd:"#ddc3e6" },
+  { bg:"#e8f0f5", fg:"#2b6b8c", bd:"#c3dbe6" }
+];
+
+/* Palette de groupes — 12 teintes desaturees, lisibles en projection */
+const GROUP_PALETTE = [
+  "#2b5a8c", "#3d7ea6", "#2b8c72", "#5a6b2b",
+  "#8c6a2b", "#b06000", "#8c4a2b", "#c65b4a",
+  "#7a2b8c", "#5a2b8c", "#4a5a78", "#6b7280"
+];
+const NEUTRAL = "#c3ceda";
+
+const state = {
+  items: [], buckets: [], tags: [], activeFilters: [],
+  bulkOpen: false, importOpen: false, replaceMode: false, importError: "",
+  addingBucket: false, dragId: null, paletteOpenFor: null
+};
+
+const $ = (id) => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2, 10);
+function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+function colorFor(tagId) { const i = state.tags.findIndex(t => t.id === tagId); return TAG_PALETTE[(i < 0 ? 0 : i) % TAG_PALETTE.length]; }
+
+/* Couleur d'un groupe : celle choisie, sinon la suivante de la palette par position */
+function bucketColor(bucket) {
+  if (!bucket || !bucket.id) return NEUTRAL;
+  if (bucket.color) return bucket.color;
+  const i = state.buckets.findIndex(b => b.id === bucket.id);
+  return GROUP_PALETTE[(i < 0 ? 0 : i) % GROUP_PALETTE.length];
+}
+function nextFreeColor() {
+  const used = new Set(state.buckets.map(b => b.color).filter(Boolean));
+  return GROUP_PALETTE.find(c => !used.has(c)) || GROUP_PALETTE[state.buckets.length % GROUP_PALETTE.length];
+}
+
+/* ---------- Persistance ---------- */
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) { const d = JSON.parse(raw); state.items = d.items || []; state.buckets = d.buckets || []; state.tags = d.tags || []; }
+  } catch (e) { console.warn("Etat illisible, on repart a vide.", e); }
+}
+let flashTimer = null;
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ items: state.items, buckets: state.buckets, tags: state.tags })); }
+  catch (e) { alert("Sauvegarde impossible dans ce navigateur (navigation privee ?). Exportez en JSON pour ne rien perdre."); return; }
+  const s = $("saveFlash"); if (!s) return;
+  s.textContent = " · enregistre"; clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { const x = $("saveFlash"); if (x) x.textContent = ""; }, 1200);
+}
+function commit() { save(); renderAll(); }
+
+/* ---------- Helpers modele ---------- */
+function findOrCreateTagIn(name, list) {
+  const clean = (name || "").trim(); if (!clean) return null;
+  let t = list.find(x => x.name.toLowerCase() === clean.toLowerCase());
+  if (!t) { t = { id: uid(), name: clean }; list.push(t); }
+  return t.id;
+}
+function findOrCreateBucketIn(name, list, color) {
+  const clean = (name || "").trim(); if (!clean) return null;
+  let b = list.find(x => x.name.toLowerCase() === clean.toLowerCase());
+  if (!b) {
+    b = { id: uid(), name: clean, collapsed: false, color: color || GROUP_PALETTE[list.length % GROUP_PALETTE.length] };
+    list.push(b);
+  } else if (color && !b.color) b.color = color;
+  return b.id;
+}
+function visibleItems() {
+  return state.activeFilters.length
+    ? state.items.filter(it => state.activeFilters.every(f => it.tags.includes(f)))
+    : state.items;
+}
+
+/* ---------- Mutations structurelles ---------- */
+function addBulk(text) {
+  const parsed = (text || "").split("\n").map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split("|");
+    return { id: uid(), name: (parts[0] || line).trim(), vendor: (parts[1] || "").trim(), tags: [], bucketId: null };
+  });
+  if (!parsed.length) return;
+  state.items = state.items.concat(parsed);
+  state.bulkOpen = false;
+  commit();
+}
+function removeItem(id) { state.items = state.items.filter(i => i.id !== id); commit(); }
+function toggleFilter(tagId) {
+  state.activeFilters = state.activeFilters.includes(tagId)
+    ? state.activeFilters.filter(t => t !== tagId) : state.activeFilters.concat(tagId);
+  commit();
+}
+function resetAll() {
+  if (!confirm("Effacer la liste, les groupes et les tags ? Action irreversible.")) return;
+  state.items = []; state.tags = []; state.buckets = []; state.activeFilters = [];
+  commit();
+}
+function createBucket(name) {
+  const clean = (name || "").trim();
+  state.addingBucket = false;
+  if (clean) state.buckets.push({ id: uid(), name: clean, collapsed: false, color: nextFreeColor() });
+  commit();
+}
+function setBucketColor(id, color) {
+  const b = state.buckets.find(x => x.id === id); if (!b) return;
+  b.color = color; state.paletteOpenFor = null;
+  commit();
+}
+function toggleCollapse(id) { const b = state.buckets.find(x => x.id === id); if (b) b.collapsed = !b.collapsed; commit(); }
+function deleteBucket(id) {
+  const count = state.items.filter(i => i.bucketId === id).length;
+  if (count > 0 && !confirm("Ce groupe contient " + count + " element(s). Ils repasseront en Non classe. Continuer ?")) return;
+  state.items.forEach(i => { if (i.bucketId === id) i.bucketId = null; });
+  state.buckets = state.buckets.filter(b => b.id !== id);
+  commit();
+}
+function moveBucket(id, dir) {
+  const idx = state.buckets.findIndex(b => b.id === id), to = idx + dir;
+  if (idx < 0 || to < 0 || to >= state.buckets.length) return;
+  const tmp = state.buckets[idx]; state.buckets[idx] = state.buckets[to]; state.buckets[to] = tmp;
+  commit();
+}
+function moveItemToBucket(itemId, bucketId) {
+  const it = state.items.find(i => i.id === itemId); if (it) it.bucketId = bucketId || null;
+  commit();
+}
+function dropOnItem(draggedId, targetId) {
+  if (draggedId === targetId) return;
+  const from = state.items.findIndex(i => i.id === draggedId); if (from < 0) return;
+  const moved = state.items.splice(from, 1)[0];
+  const to = state.items.findIndex(i => i.id === targetId);
+  const target = to >= 0 ? state.items[to] : null;
+  moved.bucketId = target ? (target.bucketId || null) : moved.bucketId;
+  state.items.splice(to < 0 ? state.items.length : to, 0, moved);
+  commit();
+}
+function dropOnGroup(draggedId, bucketId) {
+  const from = state.items.findIndex(i => i.id === draggedId); if (from < 0) return;
+  const moved = state.items.splice(from, 1)[0];
+  moved.bucketId = bucketId || null;
+  state.items.push(moved);
+  commit();
+}
+
+/* ---------- Mutations locales (sans rendu global) ---------- */
+function addTagToItem(item, name, tagsHost) {
+  const tagId = findOrCreateTagIn(name, state.tags);
+  if (!tagId) return;
+  if (!item.tags.includes(tagId)) item.tags.push(tagId);
+  save();
+  renderTagsInto(tagsHost, item, true);
+  refreshTagBar(); refreshDatalist(); refreshStats();
+}
+function removeTagFromItem(item, tagId, tagsHost) {
+  item.tags = item.tags.filter(t => t !== tagId);
+  save();
+  renderTagsInto(tagsHost, item, false);
+  refreshTagBar(); refreshStats();
+}
+
+/* ---------- Edition inline ---------- */
+function inlineEdit(node, currentValue, inputClass, onCommit, rebuild) {
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.className = inputClass; inp.value = currentValue;
+  let settled = false;
+  const finish = (keep) => {
+    if (settled) return; settled = true;
+    const v = inp.value.trim();
+    if (keep && v && v !== currentValue) onCommit(v);
+    const back = rebuild();
+    if (inp.parentNode) inp.replaceWith(back);
+  };
+  inp.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  inp.addEventListener("blur", () => finish(true));
+  node.replaceWith(inp);
+  inp.focus(); inp.select();
+}
+function itemNameNode(item, row) {
+  const nm = el("div", "item-name", item.name);
+  nm.title = "Cliquer pour renommer";
+  nm.addEventListener("click", () => {
+    if (row) row.draggable = false;
+    inlineEdit(nm, item.name, "item-name-input",
+      (v) => { item.name = v; save(); refreshStats(); },
+      () => itemNameNode(item, row));
+  });
+  return nm;
+}
+function bucketNameNode(bucket) {
+  const nm = el("span", "group-name", bucket.name);
+  nm.title = "Cliquer pour renommer";
+  nm.addEventListener("click", () => {
+    inlineEdit(nm, bucket.name, "group-name-input",
+      (v) => { bucket.name = v; save(); refreshBucketSelects(); },
+      () => bucketNameNode(bucket));
+  });
+  return nm;
+}
+
+/* ============================================================
+   RENDU
+   ============================================================ */
+function renderAll() {
+  const root = $("root");
+  root.innerHTML = "";
+
+  const head = el("div", "row-between");
+  const left = el("div");
+  left.appendChild(el("h1", null, "Priorisation des solutions"));
+  const stats = el("div", "stats"); stats.id = "statsLine";
+  left.appendChild(stats);
+  head.appendChild(left);
+
+  const toolbar = el("div", "toolbar");
+  const bImport = el("button", "btn-" + (state.importOpen ? "primary" : "ghost"), "Importer");
+  bImport.onclick = () => { state.importOpen = !state.importOpen; state.importError = ""; commit(); };
+  const bCsv = el("button", "btn-ghost", "Exporter CSV"); bCsv.onclick = exportCsv;
+  const bJson = el("button", "btn-ghost", "Exporter JSON"); bJson.onclick = exportJson;
+  const bReset = el("button", "btn-ghost", "Reinitialiser"); bReset.onclick = resetAll;
+  toolbar.append(bImport, bCsv, bJson, bReset);
+  head.appendChild(toolbar);
+  root.appendChild(head);
+
+  if (state.importOpen) root.appendChild(renderImportPanel());
+  root.appendChild(renderAddPanel());
+
+  const tagbar = el("div", "tagbar"); tagbar.id = "tagBar"; root.appendChild(tagbar);
+  root.appendChild(renderNewBucketControl());
+
+  const groups = el("div", "groups"); groups.id = "groupsHost"; root.appendChild(groups);
+  const list = [{ id: null, name: "Non classe", virtual: true }].concat(state.buckets);
+  list.forEach(g => groups.appendChild(renderGroup(g)));
+
+  if (state.items.length === 0) root.appendChild(el("div", "empty-state", "Aucune solution — ajoutez-en ou importez-en ci-dessus."));
+
+  root.appendChild(el("div", "footnote",
+    "Glisser-deposer par la poignee a gauche pour reordonner ou changer de groupe. Le menu deroulant a droite deplace une ligne sans glisser. " +
+    "Cliquer sur un nom pour le renommer (Entree valide, Echap annule) ; cliquer sur la pastille de couleur d'un groupe pour changer sa teinte. " +
+    "Tout est stocke localement dans ce navigateur — exportez en JSON pour transporter vos donnees."));
+
+  refreshTagBar(); refreshDatalist(); refreshStats();
+}
+
+function refreshStats() {
+  const s = $("statsLine"); if (!s) return;
+  s.innerHTML = "";
+  const vis = visibleItems().length;
+  s.appendChild(document.createTextNode(
+    state.items.length + " element" + (state.items.length !== 1 ? "s" : "") + " · " +
+    state.buckets.length + " groupe" + (state.buckets.length !== 1 ? "s" : "") +
+    (state.activeFilters.length ? " · " + vis + " affiche" + (vis !== 1 ? "s" : "") : "")));
+  const flash = el("span", "ok"); flash.id = "saveFlash"; s.appendChild(flash);
+}
+function refreshDatalist() {
+  const dl = $("tag-suggestions"); dl.innerHTML = "";
+  state.tags.forEach(t => { const o = document.createElement("option"); o.value = t.name; dl.appendChild(o); });
+}
+function refreshBucketSelects() {
+  document.querySelectorAll(".bucket-select").forEach(sel => {
+    const current = sel.value;
+    sel.innerHTML = "";
+    const none = document.createElement("option"); none.value = ""; none.textContent = "Non classe"; sel.appendChild(none);
+    state.buckets.forEach(b => { const o = document.createElement("option"); o.value = b.id; o.textContent = b.name; sel.appendChild(o); });
+    sel.value = current;
+  });
+}
+function refreshTagBar() {
+  const bar = $("tagBar"); if (!bar) return;
+  bar.innerHTML = "";
+  if (!state.tags.length) return;
+  bar.appendChild(el("span", "label", "Filtrer :"));
+  state.tags.forEach(t => {
+    const c = colorFor(t.id), on = state.activeFilters.includes(t.id);
+    const btn = el("button", "tag-chip-btn");
+    btn.style.borderColor = on ? c.fg : c.bd;
+    btn.style.background = on ? c.fg : c.bg;
+    btn.style.color = on ? "#fff" : c.fg;
+    btn.textContent = t.name + "  " + state.items.filter(i => i.tags.includes(t.id)).length;
+    btn.onclick = () => toggleFilter(t.id);
+    bar.appendChild(btn);
+  });
+  if (state.activeFilters.length) {
+    const clear = el("button", "btn-ghost", "Effacer le filtre");
+    clear.style.fontSize = "11.5px"; clear.style.padding = "3px 9px";
+    clear.onclick = () => { state.activeFilters = []; commit(); };
+    bar.appendChild(clear);
+  }
+}
+
+function renderAddPanel() {
+  const p = el("div", "panel");
+  if (!state.bulkOpen) {
+    const b = el("button", "btn-ghost dashed", "+ Ajouter des solutions");
+    b.onclick = () => { state.bulkOpen = true; commit(); };
+    p.appendChild(b); return p;
+  }
+  const ta = el("textarea"); ta.rows = 4;
+  ta.placeholder = 'Une ligne par solution — "Nom" ou "Nom | Editeur"\nex : Anaplan | Anaplan Inc.\nOneStream';
+  ta.addEventListener("keydown", (e) => { if (e.key === "Escape") { state.bulkOpen = false; commit(); } });
+  p.appendChild(ta);
+  const actions = el("div", "field-row");
+  const go = el("button", "btn-primary", "Ajouter"); go.onclick = () => addBulk(ta.value);
+  const cancel = el("button", "btn-ghost", "Annuler"); cancel.onclick = () => { state.bulkOpen = false; commit(); };
+  actions.append(go, cancel); p.appendChild(actions);
+  setTimeout(() => ta.focus(), 0);
+  return p;
+}
+
+function renderNewBucketControl() {
+  const wrap = el("div");
+  if (!state.addingBucket) {
+    const b = el("button", "btn-ghost dashed", "+ Nouveau groupe");
+    b.onclick = () => { state.addingBucket = true; commit(); };
+    wrap.appendChild(b); return wrap;
+  }
+  const row = el("div", "field-row"); row.style.marginTop = "0";
+  const inp = document.createElement("input"); inp.type = "text";
+  inp.placeholder = "Nom du groupe (ex : Retenus, A ecarter, Phase 2…)"; inp.style.width = "280px";
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); createBucket(inp.value); }
+    else if (e.key === "Escape") { state.addingBucket = false; commit(); }
+  });
+  const go = el("button", "btn-primary", "Creer"); go.onclick = () => createBucket(inp.value);
+  const cancel = el("button", "btn-ghost", "Annuler"); cancel.onclick = () => { state.addingBucket = false; commit(); };
+  row.append(inp, go, cancel); wrap.appendChild(row);
+  setTimeout(() => inp.focus(), 0);
+  return wrap;
+}
+
+function renderImportPanel() {
+  const p = el("div", "panel accent");
+  const hint = el("div", "panel-hint");
+  hint.innerHTML = "Collez du <b>JSON</b> exporte depuis cet outil (restauration fidele : groupes, couleurs, tags, ordre) "
+    + "ou du <b>CSV</b> au format <code>Groupe;Rang;Nom;Editeur;Tags</code> — ou choisissez un fichier.";
+  p.appendChild(hint);
+
+  const ta = el("textarea", "mono"); ta.id = "importTextArea"; ta.rows = 6;
+  ta.placeholder = "Collez ici le JSON ou le CSV…";
+
+  const fieldRow = el("div", "field-row"); fieldRow.style.marginTop = "0";
+  const bFile = el("button", "btn-ghost", "Choisir un fichier…");
+  bFile.onclick = () => $("fileInputImport").click();
+  const lbl = el("label", "checkbox-label");
+  const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.replaceMode;
+  cb.onchange = (e) => { state.replaceMode = e.target.checked; };
+  lbl.appendChild(cb);
+  lbl.appendChild(document.createTextNode(" Remplacer la liste actuelle (sinon : ajout a l'existant)"));
+  fieldRow.append(bFile, lbl);
+  p.appendChild(fieldRow);
+  p.appendChild(ta);
+
+  if (state.importError) p.appendChild(el("div", "import-error", state.importError));
+
+  const actions = el("div", "field-row");
+  const go = el("button", "btn-primary", "Lancer l'import"); go.onclick = () => runImport(ta.value);
+  const cancel = el("button", "btn-ghost", "Annuler");
+  cancel.onclick = () => { state.importOpen = false; state.importError = ""; commit(); };
+  actions.append(go, cancel); p.appendChild(actions);
+  return p;
+}
+
+function renderPalettePopover(bucket) {
+  const pop = el("div", "palette-pop");
+  const current = bucketColor(bucket);
+  GROUP_PALETTE.forEach(c => {
+    const b = el("button", c.toLowerCase() === current.toLowerCase() ? "on" : null);
+    b.style.background = c; b.title = c;
+    b.onclick = (e) => { e.stopPropagation(); setBucketColor(bucket.id, c); };
+    pop.appendChild(b);
+  });
+  pop.addEventListener("click", (e) => e.stopPropagation());
+  return pop;
+}
+
+function renderGroup(g) {
+  const wrap = el("div");
+  const groupItems = visibleItems().filter(it => (it.bucketId || null) === (g.id || null));
+  const color = g.virtual ? NEUTRAL : bucketColor(g);
+
+  const header = el("div", "group-header");
+  const chev = el("button", "chevron", g.virtual ? "" : (g.collapsed ? "\u25B8" : "\u25BE"));
+  if (g.virtual) chev.style.visibility = "hidden"; else chev.onclick = () => toggleCollapse(g.id);
+  header.appendChild(chev);
+
+  const sw = el("button", "swatch" + (g.virtual ? " locked" : ""));
+  sw.style.background = color;
+  sw.title = g.virtual ? "" : "Changer la couleur du groupe";
+  if (!g.virtual) sw.onclick = (e) => {
+    e.stopPropagation();
+    state.paletteOpenFor = state.paletteOpenFor === g.id ? null : g.id;
+    commit();
+  };
+  header.appendChild(sw);
+
+  header.appendChild(g.virtual ? el("span", "group-name virtual", g.name) : bucketNameNode(g));
+  const cnt = el("span", "group-count", String(groupItems.length));
+  header.appendChild(cnt);
+
+  if (!g.virtual) {
+    const actions = el("div", "group-actions");
+    const up = el("button", "icon-btn", "\u2191"); up.title = "Monter le groupe"; up.onclick = () => moveBucket(g.id, -1);
+    const dn = el("button", "icon-btn", "\u2193"); dn.title = "Descendre le groupe"; dn.onclick = () => moveBucket(g.id, 1);
+    const del = el("button", "icon-btn danger", "\u2715"); del.title = "Supprimer le groupe"; del.onclick = () => deleteBucket(g.id);
+    actions.append(up, dn, del); header.appendChild(actions);
+    if (state.paletteOpenFor === g.id) header.appendChild(renderPalettePopover(g));
+  }
+  wrap.appendChild(header);
+
+  const body = el("div", "group-body");
+  body.addEventListener("dragover", (e) => { if (!state.dragId) return; e.preventDefault(); body.classList.add("dragover"); });
+  body.addEventListener("dragleave", (e) => { if (!body.contains(e.relatedTarget)) body.classList.remove("dragover"); });
+  body.addEventListener("drop", (e) => {
+    e.preventDefault(); body.classList.remove("dragover");
+    if (state.dragId) dropOnGroup(state.dragId, g.id);
+  });
+
+  if (!g.collapsed) {
+    if (!groupItems.length) {
+      const empty = el("div", "group-empty", "Glissez une ligne ici pour la classer dans « " + g.name + " »");
+      body.appendChild(empty);
+    } else {
+      groupItems.forEach((it, i) => body.appendChild(renderItemRow(it, i, color)));
+    }
+  }
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function renderItemRow(item, groupIdx, groupColor) {
+  const row = el("div", "item-row");
+  row.style.borderLeftColor = groupColor;
+  row.draggable = false;
+
+  const grip = el("span", "grip", "\u2630");
+  grip.title = "Glisser pour deplacer";
+  grip.addEventListener("mousedown", () => { row.draggable = true; });
+  grip.addEventListener("touchstart", () => { row.draggable = true; }, { passive: true });
+  row.appendChild(grip);
+
+  row.addEventListener("dragstart", (e) => {
+    state.dragId = item.id; row.classList.add("dragging");
+    try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id); } catch (err) {}
+  });
+  row.addEventListener("dragend", () => { state.dragId = null; row.draggable = false; row.classList.remove("dragging"); });
+  row.addEventListener("dragover", (e) => {
+    if (!state.dragId || state.dragId === item.id) return;
+    e.preventDefault(); e.stopPropagation(); row.classList.add("dragover");
+    const b = row.closest(".group-body"); if (b) b.classList.remove("dragover");
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("dragover"));
+  row.addEventListener("drop", (e) => {
+    e.preventDefault(); e.stopPropagation(); row.classList.remove("dragover");
+    if (state.dragId) dropOnItem(state.dragId, item.id);
+  });
+  document.addEventListener("mouseup", () => { if (!state.dragId) row.draggable = false; });
+
+  const rank = el("span", "rank", String(groupIdx + 1));
+  rank.style.color = groupColor === NEUTRAL ? "" : groupColor;
+  row.appendChild(rank);
+
+  const main = el("div", "item-main");
+  main.appendChild(itemNameNode(item, row));
+  if (item.vendor) main.appendChild(el("div", "item-vendor", item.vendor));
+  row.appendChild(main);
+
+  const tagsHost = el("div", "item-tags");
+  renderTagsInto(tagsHost, item, false);
+  row.appendChild(tagsHost);
+
+  const sel = document.createElement("select"); sel.className = "bucket-select";
+  sel.title = "Deplacer vers un groupe";
+  const none = document.createElement("option"); none.value = ""; none.textContent = "Non classe"; sel.appendChild(none);
+  state.buckets.forEach(b => { const o = document.createElement("option"); o.value = b.id; o.textContent = b.name; sel.appendChild(o); });
+  sel.value = item.bucketId || "";
+  sel.onchange = (e) => moveItemToBucket(item.id, e.target.value || null);
+  row.appendChild(sel);
+
+  const del = el("button", "delete-btn", "\u2715"); del.title = "Supprimer";
+  del.onclick = () => removeItem(item.id);
+  row.appendChild(del);
+
+  return row;
+}
+
+function renderTagsInto(host, item, openEditor) {
+  host.innerHTML = "";
+  item.tags.forEach(tid => {
+    const t = state.tags.find(x => x.id === tid); if (!t) return;
+    const c = colorFor(tid);
+    const chip = el("span", "tag-chip");
+    chip.style.background = c.bg; chip.style.color = c.fg; chip.style.borderColor = c.bd;
+    chip.appendChild(document.createTextNode(t.name));
+    const rm = el("button", null, "\u2715");
+    rm.onclick = () => removeTagFromItem(item, tid, host);
+    chip.appendChild(rm);
+    host.appendChild(chip);
+  });
+
+  if (openEditor) {
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.className = "tag-add-input"; inp.placeholder = "tag…";
+    inp.setAttribute("list", "tag-suggestions");
+    let settled = false;
+    inp.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const v = inp.value.trim();
+        if (v) { settled = true; addTagToItem(item, v, host); }
+      } else if (e.key === "Escape") { e.preventDefault(); settled = true; renderTagsInto(host, item, false); }
+    });
+    inp.addEventListener("blur", () => { if (!settled) renderTagsInto(host, item, false); });
+    host.appendChild(inp);
+    setTimeout(() => inp.focus(), 0);
+  } else {
+    const add = el("button", "tag-add-btn", "+ tag");
+    add.onclick = () => renderTagsInto(host, item, true);
+    host.appendChild(add);
+  }
+}
+
+/* ---------- Export ---------- */
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportCsv() {
+  const header = "Groupe;Couleur;Rang;Nom;Editeur;Tags";
+  const groups = [{ id: null, name: "Non classe" }].concat(state.buckets);
+  const rows = [];
+  groups.forEach(g => {
+    const col = g.id ? bucketColor(g) : "";
+    state.items.filter(i => (i.bucketId || null) === (g.id || null)).forEach((it, idx) => {
+      const tagNames = it.tags.map(tid => (state.tags.find(t => t.id === tid) || {}).name).filter(Boolean).join(", ");
+      rows.push([g.name, col, idx + 1, it.name, it.vendor, tagNames]
+        .map(v => String(v == null ? "" : v).replace(/;/g, ",")).join(";"));
+    });
+  });
+  download("priorisation-solutions.csv", "\uFEFF" + [header].concat(rows).join("\r\n"), "text/csv;charset=utf-8");
+}
+function exportJson() {
+  const buckets = state.buckets.map(b => ({ id: b.id, name: b.name, collapsed: !!b.collapsed, color: bucketColor(b) }));
+  download("priorisation-solutions.json",
+    JSON.stringify({ items: state.items, tags: state.tags, buckets: buckets }, null, 2),
+    "application/json");
+}
+
+/* ---------- Import ---------- */
+function runImport(rawText) {
+  state.importError = "";
+  const raw = (rawText || "").trim();
+  if (!raw) { state.importError = "Rien a importer — collez du JSON ou du CSV, ou choisissez un fichier."; commit(); return; }
+
+  let rows = [], seedBuckets = [], seedTags = [];
+  try {
+    if (raw.charAt(0) === "{") {
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data.items)) throw new Error("le champ « items » est manquant ou invalide.");
+      seedBuckets = (data.buckets || []).map(b => ({ name: b.name, color: b.color }));
+      seedTags = (data.tags || []).map(t => t.name);
+      rows = data.items.map(it => {
+        const b = it.bucketId ? (data.buckets || []).find(x => x.id === it.bucketId) : null;
+        return {
+          name: String(it.name || "Sans nom").trim(),
+          vendor: String(it.vendor || "").trim(),
+          tagNames: (it.tags || []).map(tid => (data.tags || []).find(t => t.id === tid)).filter(Boolean).map(t => t.name),
+          bucketName: b ? b.name : null,
+          bucketColor: b ? b.color : null
+        };
+      });
+    } else {
+      const lines = raw.replace(/^\uFEFF/, "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (!lines.length) throw new Error("aucune ligne detectee.");
+      const hasHeader = /^groupe;/i.test(lines[0]);
+      const withColor = hasHeader && /^groupe;couleur;/i.test(lines[0]);
+      rows = lines.slice(hasHeader ? 1 : 0).map(line => {
+        const p = line.split(";");
+        const groupe = (p[0] || "").trim();
+        const off = withColor ? 1 : 0;
+        return {
+          bucketName: groupe && !/^non class/i.test(groupe) ? groupe : null,
+          bucketColor: withColor ? ((p[1] || "").trim() || null) : null,
+          name: (p[2 + off] || "").trim() || "Sans nom",
+          vendor: (p[3 + off] || "").trim(),
+          tagNames: (p[4 + off] || "").split(",").map(s => s.trim()).filter(Boolean)
+        };
+      });
+    }
+  } catch (e) {
+    state.importError = "Format non reconnu : " + e.message; commit(); return;
+  }
+  if (!rows.length) { state.importError = "Aucune solution detectee dans le contenu fourni."; commit(); return; }
+  if (state.replaceMode && !confirm("Remplacer la liste actuelle par " + rows.length + " solution(s) importee(s) ?")) return;
+
+  const bucketList = state.replaceMode ? [] : state.buckets.slice();
+  const tagList = state.replaceMode ? [] : state.tags.slice();
+  seedBuckets.forEach(b => findOrCreateBucketIn(b.name, bucketList, b.color));
+  seedTags.forEach(n => findOrCreateTagIn(n, tagList));
+
+  const newItems = rows.map(r => ({
+    id: uid(), name: r.name, vendor: r.vendor,
+    tags: r.tagNames.map(n => findOrCreateTagIn(n, tagList)).filter(Boolean),
+    bucketId: findOrCreateBucketIn(r.bucketName, bucketList, r.bucketColor)
+  }));
+
+  state.tags = tagList; state.buckets = bucketList;
+  state.items = state.replaceMode ? newItems : state.items.concat(newItems);
+  state.importOpen = false; state.importError = ""; state.activeFilters = [];
+  commit();
+}
+
+/* ---------- Bind global ---------- */
+$("fileInputImport").onchange = (e) => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const text = String(ev.target.result || "");
+    if (!state.importOpen) { state.importOpen = true; commit(); }
+    const ta = $("importTextArea"); if (ta) ta.value = text;
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+};
+document.addEventListener("click", () => {
+  if (state.paletteOpenFor) { state.paletteOpenFor = null; commit(); }
+});
+
+load();
+renderAll();
+</script>
+</body>
+</html>
