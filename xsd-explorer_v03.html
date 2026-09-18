@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>XSD Explorer</title>
+<style>
+/* =====================================================================
+   HOUSE STYLE — tokens
+   v0.3 — direction arrêtée après la planche de références (moodboard/).
+   Inspiration : les apps outils de macOS (Finder, Réglages Système,
+   inspecteurs Keynote). On emprunte la grammaire, pas le chrome :
+   ni fausse barre de fenêtre, ni flou translucide décoratif, ni contrôle
+   recopié au pixel. Voir SKILL.md §3.
+
+   Tous les couples texte/fond de ce fichier sont vérifiés AA (≥ 4.5),
+   en clair comme en sombre, sur TOUTES les surfaces où ils peuvent tomber
+   (--bg, --bg-stripe, --bg-inset, --bg-sidebar).
+   ===================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* --- Typographie --------------------------------------------------
+     SF d'abord : c'est la police des captures, et elle est native sur
+     Mac et iPhone. Les fallbacks couvrent le reste sans changer le rythme. */
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+             "Helvetica Neue", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace; /* code UNIQUEMENT */
+
+  /* Échelle desktop : le corps descend à 13px, la taille de texte des
+     listes et inspecteurs macOS. 14px est réservé au contenu de lecture. */
+  --text-xs: 11px;   --lh-xs: 14px;   /* en-tête de colonne, badge, légende */
+  --text-sm: 12px;   --lh-sm: 16px;   /* secondaire, aide, métadonnée */
+  --text-md: 13px;   --lh-md: 17px;   /* CORPS : lignes, champs, boutons */
+  --text-lg: 15px;   --lh-lg: 20px;   /* titre de groupe, contenu de lecture */
+  --text-xl: 19px;   --lh-xl: 24px;   /* titre de vue */
+  --text-2xl: 28px;  --lh-2xl: 34px;  /* rare : chiffre clé */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* macOS resserre l'interlettrage des grandes tailles, l'élargit aux petites. */
+  --tracking-tight: -0.01em;   /* ≥ 19px */
+  --tracking-normal: 0;
+  --tracking-wide: 0.01em;     /* ≤ 11px */
+
+  /* --- Espacements (échelle 4) ------------------------------------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+
+  /* --- Rayons : hiérarchisés, jamais uniformes --------------------- */
+  --radius-sm: 4px;    /* case à cocher, pastille, badge */
+  --radius-md: 6px;    /* champs, boutons, ligne sélectionnée, segment */
+  --radius-lg: 10px;   /* bloc de groupe, panneau, popover */
+  --radius-xl: 14px;   /* modale */
+  --radius-pill: 999px;
+
+  /* --- Neutres : quatre plans, pas des cartes -----------------------
+     La profondeur vient de l'empilement de fonds très proches + d'un filet,
+     jamais d'une ombre. Seul ce qui flotte réellement porte une ombre. */
+  --bg:          #FFFFFF;   /* plan de contenu : table, éditeur */
+  --bg-stripe:   #F7F7F9;   /* alternance de lignes (Finder), en-tête de table */
+  --bg-inset:    #F2F2F5;   /* bloc de groupe, piste de segmented, champ creusé */
+  --bg-sidebar:  #F0F0F3;   /* source list, inspecteur, barre d'outils */
+  --bg-hover:    #E9E9EE;
+  --bg-active:   #E0E0E6;   /* enfoncé */
+
+  /* Couple creux/posé, pour les contrôles qui empilent deux plans :
+     piste de segmented, champ de recherche, rail de curseur (--bg-well) et
+     ce qui repose dessus (--bg-raised + --shadow-raised).
+     --bg-well ne porte que --text et --text-muted : --text-faint n'y est
+     pas AA. Marque-place et icône d'un champ creusé → --text-muted. */
+  --bg-well:   #E6E6EC;
+  --bg-raised: #FFFFFF;
+
+  /* Surface d'un élément qui flotte (modale, popover, menu) et son voile.
+     En sombre elle s'ÉCLAIRCIT : un panneau flottant de la couleur de la
+     page ne se distingue plus que par son ombre, ce qui ne suffit pas. */
+  --bg-float: #FFFFFF;
+  --scrim:    rgba(0, 0, 0, 0.28);
+
+  /* Filet ≠ bordure. Le filet sépare à l'intérieur d'un groupe et se voit à
+     peine ; la bordure délimite un contrôle et doit être lisible. */
+  --separator:     #E2E2E6;
+  --border:        #D5D5DB;
+  --border-strong: #AEAEB6;
+
+  --text:       #1D1D1F;
+  --text-muted: #5F5F66;
+  --text-faint: #6A6A72;   /* pâle, mais encore AA sur les quatre plans */
+
+  /* --- Accent : le bleu système, une seule couleur ------------------
+     --accent : texte, icône, focus.  --accent-fill : aplat portant --on-accent.
+     En clair les deux coïncident ; en sombre l'aplat s'assombrit pour que le
+     blanc dessus reste AA, comme le fait macOS. */
+  --accent:        #0A66D6;
+  --accent-hover:  #0B5ABB;
+  --accent-fill:   #0A66D6;
+  --accent-subtle: #E4EDFB;   /* fond de sélection secondaire, tuile d'info */
+  --on-accent:     #FFFFFF;
+  --focus-ring:    0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  /* --- États : sens uniquement, jamais décoratifs -------------------
+     --danger-fill est l'aplat d'un bouton destructeur ou d'une pastille
+     d'alerte : il porte --on-danger et s'assombrit en sombre, sans quoi le
+     rouge vif du texte ne tiendrait pas le blanc dessus. */
+  --danger:  #C9342A;  --danger-subtle:  #FBE9E7;
+  --danger-fill: #C9342A;  --on-danger: #FFFFFF;
+  --warning: #8F560C;  --warning-subtle: #FBF0DF;
+  --success: #177A45;  --success-subtle: #E4F3EA;
+
+  /* --- Catégories : codage de données ------------------------------
+     Leçon de la capture Finder : l'objet reste neutre, c'est une PASTILLE
+     qui le marque. D'où deux niveaux :
+       --cat-N      → texte (AA sur les quatre plans)
+       --cat-N-dot  → aplat d'une pastille ou d'un liseré (≥ 3:1, non textuel)
+     Teintes prises hors rouge/orange/vert, réservés aux états. */
+  --cat-1: #2A52C9;  --cat-1-dot: #3457D5;  /* indigo   */
+  --cat-2: #7038C8;  --cat-2-dot: #8B4AE0;  /* violet   */
+  --cat-3: #0A6E80;  --cat-3-dot: #0E8598;  /* sarcelle */
+  --cat-4: #B02E86;  --cat-4-dot: #CE3C9C;  /* magenta  */
+  --cat-5: #5B6470;  --cat-5-dot: #78828F;  /* ardoise  */
+
+  /* --- Icônes : traits, pas de remplissage -------------------------
+     --icon-stroke est la graisse à laquelle DESSINER les icônes du jeu,
+     pour qu'elles restent d'une seule famille ; on peut monter à 1.75 pour
+     un chevron et 2 pour une coche, qui sinon paraissent maigres. */
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-lg: 20px;
+  --icon-stroke: 1.5;
+
+  /* --- Élévation : seulement ce qui flotte -------------------------
+     --shadow-raised est la seule exception : le segment actif d'un
+     segmented control, qui doit paraître posé sur sa piste. */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --shadow-float:  0 12px 32px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.09);
+
+  /* --- Mouvement ---------------------------------------------------- */
+  --duration: 120ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* --- Densité desktop ---------------------------------------------
+     Les hauteurs viennent des captures : une ligne de source list fait 28px,
+     une ligne de table 30px. C'est dense, et c'est voulu. */
+  --row-h:        28px;   /* source list, arbre, liste de groupe */
+  --row-h-table:  30px;   /* ligne de table */
+  --header-h:     38px;   /* en-tête de vue, barre d'outils */
+  --control-h:    28px;   /* champ, bouton, segment */
+  --control-h-sm: 22px;
+  --control-h-touch: 44px;
+
+  --sidebar-w:   216px;
+  --inspector-w: 272px;
+  --hairline: 1px;        /* passe à 0.5px sur écran Retina, voir plus bas */
+}
+
+/* Filet d'un demi-pixel là où l'écran sait le rendre : c'est ce qui donne
+   aux séparateurs macOS leur finesse. */
+@media (min-resolution: 2dppx) {
+  :root { --hairline: 0.5px; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:          #1C1C1E;
+    --bg-stripe:   #202023;
+    --bg-inset:    #2A2A2E;
+    --bg-sidebar:  #232326;
+    --bg-hover:    #303035;
+    --bg-active:   #38383E;
+
+    --bg-well:   #141416;
+    --bg-raised: #3C3C42;
+
+    --bg-float: #2C2C31;
+    --scrim:    rgba(0, 0, 0, 0.6);
+
+    --separator:     #35353A;
+    --border:        #48484E;
+    --border-strong: #6A6A72;
+
+    --text:       #F2F2F4;
+    --text-muted: #ACACB4;
+    --text-faint: #93939B;
+
+    --accent:        #5AA9FF;
+    --accent-hover:  #7DBCFF;
+    --accent-fill:   #0F6FE0;
+    --accent-subtle: #17304F;
+    --on-accent:     #FFFFFF;
+
+    --danger:  #FF6B60;  --danger-subtle:  #3A1E1C;
+    --danger-fill: #CF3A2F;  --on-danger: #FFFFFF;
+    --warning: #E8A33D;  --warning-subtle: #37280F;
+    --success: #46C77E;  --success-subtle: #14301F;
+
+    --cat-1: #8CA4FF;  --cat-1-dot: #7B93FF;
+    --cat-2: #B98CFA;  --cat-2-dot: #AC7BF5;
+    --cat-3: #3FC3D6;  --cat-3-dot: #35B5C8;
+    --cat-4: #F07BC4;  --cat-4-dot: #E96BB8;
+    --cat-5: #A0AAB8;  --cat-5-dot: #8E98A6;
+
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    --shadow-float:  0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Bascule manuelle : dupliquer le bloc ci-dessus sous :root[data-theme="dark"]. */
+
+@media (pointer: coarse) {
+  :root {
+    --control-h: var(--control-h-touch);
+    /* Au doigt, un « petit » bouton n'existe pas : il passe à la cible
+       pleine. On perd la nuance de taille, on garde les 44px. */
+    --control-h-sm: var(--control-h-touch);
+    --row-h: 44px;
+    --row-h-table: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration: 0ms; }
+}
+
+/* =====================================================================
+   tokens de l'outil
+   ===================================================================== */
+:root {
+  --pane-left: 46%;
+  --pane-left-min: 300px;
+  --detail-max: 880px;
+  --drop-max: 520px;
+  --dot: 8px;
+  --dot-ring: 1.5px;
+  --twisty: 16px;
+  --chip-h: 22px;   /* reste compact au doigt : la cible du × est élargie à part */
+
+  /* Codage par nature de nœud XSD, repris de la v03 (élément bleu, type
+     complexe violet, type simple vert → sarcelle, attribut orange → magenta,
+     compositeur). Porté par une pastille, le nom reste neutre. */
+  --kind-el: var(--cat-1-dot);
+  --kind-ct: var(--cat-2-dot);
+  --kind-st: var(--cat-3-dot);
+  --kind-at: var(--cat-4-dot);
+  --kind-ch: var(--cat-5-dot);
+}
+
+/* =====================================================================
+   BASE
+   ===================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-ui); font-size: var(--text-md); line-height: var(--lh-md);
+  color: var(--text); background: var(--bg);
+  height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+code { font-family: var(--font-code); font-size: var(--text-sm); }
+svg.i { display: block; flex: none; width: var(--icon-md); height: var(--icon-md);
+  fill: none; stroke: currentColor; stroke-width: var(--icon-stroke); stroke-linecap: round; stroke-linejoin: round; }
+svg.i-s { width: var(--icon-sm); height: var(--icon-sm); }
+svg.i[data-bold] { stroke-width: 1.75; }
+:where(button, a, input, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: var(--radius-sm); }
+
+/* Pastille de nature */
+.nm::before, .kind::before {
+  content: ""; display: block; flex: none; width: var(--dot); height: var(--dot);
+  border-radius: var(--radius-pill); background: var(--kind, var(--kind-ch));
+}
+.el { --kind: var(--kind-el); } .ct { --kind: var(--kind-ct); } .st { --kind: var(--kind-st); }
+.at { --kind: var(--kind-at); } .ch { --kind: var(--kind-ch); }
+
+/* =====================================================================
+   EN-TÊTE
+   ===================================================================== */
+.hd {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+  min-height: var(--header-h); flex: none;
+  padding: var(--space-2) calc(var(--space-4) + env(safe-area-inset-right)) var(--space-2) calc(var(--space-4) + env(safe-area-inset-left));
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top));
+  background: var(--bg-sidebar); border-bottom: var(--hairline) solid var(--separator);
+}
+.hd h1 { margin: 0; font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-semibold); white-space: nowrap; }
+.files { display: flex; gap: var(--space-1) var(--space-2); flex-wrap: wrap; align-items: center; min-width: 0; }
+.files:empty { display: none; }
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%;
+  height: var(--chip-h); padding-left: var(--space-2);
+  background: var(--bg-inset); border-radius: var(--radius-md);
+  font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap;
+}
+.chip button {
+  position: relative; display: grid; place-items: center; flex: none;
+  width: var(--chip-h); height: 100%; padding: 0; border: 0; background: none;
+  border-radius: var(--radius-md); color: var(--text-muted); cursor: pointer;
+}
+.chip button:hover { background: var(--bg-hover); color: var(--text); }
+.actions { margin-left: auto; display: flex; gap: var(--space-2); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  height: var(--control-h); padding-inline: var(--space-3); white-space: nowrap; cursor: pointer;
+  font-weight: var(--weight-medium); border-radius: var(--radius-md);
+  border: var(--hairline) solid transparent; background: var(--accent-fill); color: var(--on-accent);
+  transition: background var(--duration) var(--ease);
+}
+.btn:hover, .btn:active { background: var(--accent-hover); }
+.btn.ghost { background: var(--bg); border-color: var(--border); color: var(--text); }
+.btn.ghost:hover { background: var(--bg-hover); }
+.btn.ghost:active { background: var(--bg-active); }
+
+/* Bandeaux d'état */
+.warnbar, .errbar {
+  position: relative;
+  padding: var(--space-2) calc(var(--space-4) + env(safe-area-inset-right)) var(--space-2) calc(var(--space-4) + var(--icon-md) + var(--space-2) + env(safe-area-inset-left));
+  font-size: var(--text-md); line-height: var(--lh-md); color: var(--text);
+  border-bottom: var(--hairline) solid var(--separator); flex: none;
+}
+.warnbar { background: var(--warning-subtle); }
+.errbar  { background: var(--danger-subtle); }
+.warnbar::before, .errbar::before {
+  content: ""; position: absolute; left: calc(var(--space-4) + env(safe-area-inset-left)); top: calc(var(--space-2) + 1px); width: var(--icon-md); height: var(--icon-md);
+  background: currentColor;
+  -webkit-mask: var(--alert-icon) center / contain no-repeat; mask: var(--alert-icon) center / contain no-repeat;
+  --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M8 1.8 15 14H1z' stroke-linejoin='round'/%3E%3Cpath d='M8 6.5v3.2M8 11.8v.1'/%3E%3C/svg%3E");
+}
+.warnbar::before { color: var(--warning); }
+.errbar::before  { color: var(--danger); }
+.missing { font-family: var(--font-code); font-size: var(--text-sm); color: var(--text); background: color-mix(in srgb, var(--bg) 60%, transparent); border-radius: var(--radius-sm); padding: 0 var(--space-1); margin-right: var(--space-2); display: inline-block; }
+
+/* =====================================================================
+   STRUCTURE
+   ===================================================================== */
+.body { flex: 1; display: flex; min-height: 0; }
+.left { width: var(--pane-left); min-width: var(--pane-left-min); display: flex; flex-direction: column;
+  background: var(--bg); border-right: var(--hairline) solid var(--separator); }
+.right { flex: 1; min-width: 0; overflow: auto; background: var(--bg); }
+
+/* Onglets → segmented control : deux vues exclusives */
+.tabs {
+  display: flex; gap: 2px; padding: 2px; flex: none;
+  margin: var(--space-3) var(--space-3) 0; background: var(--bg-well); border-radius: var(--radius-md);
+}
+.tabs button {
+  flex: 1; height: calc(var(--control-h) - 4px); border: 0; background: none; cursor: pointer;
+  font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--text-muted);
+  border-radius: calc(var(--radius-md) - 2px); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.tabs button:hover { color: var(--text); }
+.tabs button.on { background: var(--bg-raised); color: var(--text); box-shadow: var(--shadow-raised); }
+
+/* Recherche creusée */
+.search { position: relative; padding: var(--space-2) var(--space-3) var(--space-2); flex: none;
+  border-bottom: var(--hairline) solid var(--separator); }
+.search::before {
+  content: ""; position: absolute; left: calc(var(--space-3) + var(--space-2)); top: 50%; transform: translateY(-50%);
+  width: var(--icon-sm); height: var(--icon-sm); background: var(--text-muted); pointer-events: none;
+  -webkit-mask: var(--loupe) center / contain no-repeat; mask: var(--loupe) center / contain no-repeat;
+  --loupe: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.6'/%3E%3Cpath d='m10.4 10.4 3.6 3.6'/%3E%3C/svg%3E");
+}
+.search input {
+  width: 100%; height: var(--control-h); padding: 0 var(--space-2) 0 calc(var(--space-2) * 2 + var(--icon-sm));
+  border: 0; border-radius: var(--radius-md); background: var(--bg-well); outline: none; font-size: var(--text-md);
+}
+.search input::placeholder { color: var(--text-muted); }
+.search input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* =====================================================================
+   ARBRE
+   ===================================================================== */
+.tree { flex: 1; overflow: auto; padding: var(--space-2) var(--space-2) calc(var(--space-6) + env(safe-area-inset-bottom)); }
+.row {
+  display: flex; align-items: center; gap: var(--space-2); min-width: 0;
+  min-height: var(--row-h); padding: 0 var(--space-2) 0 var(--space-1);
+  border-radius: var(--radius-md); cursor: pointer; overflow: hidden; user-select: none;
+}
+.row:hover { background: var(--bg-hover); }
+.tw { width: var(--twisty); height: var(--twisty); flex: none; display: grid; place-items: center; color: var(--text-faint); margin-right: calc(-1 * var(--space-1)); }
+.tw svg { transition: transform var(--duration) var(--ease); }
+.tw.open svg { transform: rotate(90deg); }
+.tw.leaf::before { content: ""; width: 3px; height: 3px; border-radius: var(--radius-pill); background: var(--border-strong); }
+.nm { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; white-space: nowrap;
+  font-family: var(--font-code); font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--text); }
+.nm.ch { font-family: var(--font-ui); font-size: var(--text-md); font-style: italic; font-weight: var(--weight-regular); color: var(--text-muted); }
+.ty { flex: 0 1 auto; min-width: 0; font-family: var(--font-code); font-size: var(--text-xs); color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.occ, .badge-enum {
+  flex: none; display: inline-flex; align-items: center; height: 16px; padding-inline: 5px;
+  border-radius: var(--radius-sm); font-size: var(--text-xs); line-height: 1; white-space: nowrap;
+  background: var(--bg-inset); color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.occ.req { color: var(--text); font-weight: var(--weight-semibold); background: var(--bg-active); }
+.badge-enum { color: var(--cat-3); font-weight: var(--weight-medium); }
+.guide { margin-left: calc(var(--space-1) + var(--twisty) / 2); padding-left: var(--space-1); border-left: var(--hairline) solid var(--separator); }
+
+.row.sel, .row.sel:hover { background: var(--accent-fill); }
+.row.sel .nm, .row.sel .ty, .row.sel .tw, .row.sel .occ, .row.sel .badge-enum { color: var(--on-accent); }
+.row.sel .ty, .row.sel .tw { opacity: .85; }
+.row.sel .occ, .row.sel .badge-enum { background: color-mix(in srgb, var(--on-accent) 20%, transparent); }
+.row.sel .tw.leaf::before { background: var(--on-accent); }
+.row.sel .nm::before { box-shadow: 0 0 0 var(--dot-ring) var(--on-accent); }
+
+/* =====================================================================
+   ÉTATS VIDES
+   ===================================================================== */
+.empty { padding: var(--space-7) var(--space-5); text-align: center; color: var(--text-faint); font-size: var(--text-md); max-width: 52ch; margin: 0 auto; }
+.drop {
+  display: grid; justify-items: center; gap: var(--space-2); text-align: center; cursor: pointer;
+  margin: var(--space-4); padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--bg-inset);
+  transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-subtle); }
+.drop svg { width: var(--icon-lg); height: var(--icon-lg); color: var(--text-muted); }
+.drop strong { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--weight-semibold); }
+.drop p { margin: 0; max-width: 42ch; color: var(--text-muted); }
+.drop .hint { font-size: var(--text-sm); color: var(--text-faint); }
+
+/* =====================================================================
+   DÉTAIL
+   ===================================================================== */
+.dt { max-width: var(--detail-max); padding: var(--space-5) calc(var(--space-5) + env(safe-area-inset-right)) calc(var(--space-7) + env(safe-area-inset-bottom)) var(--space-5); }
+.kind { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--text-muted); margin-bottom: var(--space-1); }
+.dt h2 { margin: 0 0 var(--space-4); font-family: var(--font-code); font-size: var(--text-xl); line-height: var(--lh-xl);
+  font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
+
+/* Groupe de paires libellé / valeur */
+.kv { background: var(--bg-inset); border-radius: var(--radius-lg); padding: 0 var(--space-3); margin: 0 0 var(--space-3); }
+.kv .pair { display: grid; grid-template-columns: minmax(96px, max-content) minmax(0, 1fr); gap: var(--space-4);
+  align-items: baseline; padding: var(--space-2) 0; min-height: var(--row-h); }
+.kv .pair + .pair { border-top: var(--hairline) solid var(--separator); }
+.kv b { font-weight: var(--weight-regular); color: var(--text-muted); }
+.kv .v { min-width: 0; overflow-wrap: anywhere; }
+.kv code { font-size: var(--text-sm); }
+.aside { font-size: var(--text-sm); color: var(--text-faint); margin-left: var(--space-2); }
+.linkty { color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 2px; }
+.linkty:hover { text-decoration-color: currentColor; }
+.chain-sep { color: var(--text-faint); font-family: var(--font-ui); }
+.unres { color: var(--warning); font-family: var(--font-ui); }
+
+.doc { font-size: var(--text-md); line-height: 20px; margin: 0 0 var(--space-4); max-width: 72ch; }
+.doc > div + div { margin-top: var(--space-2); }
+.doc .lang { display: inline-block; margin-right: var(--space-2); padding: 0 var(--space-1); border-radius: var(--radius-sm);
+  background: var(--bg-inset); color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+
+.sec { margin: var(--space-5) 0 var(--space-2); font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold); }
+.sec .count { color: var(--text-faint); font-weight: var(--weight-regular); font-variant-numeric: tabular-nums; }
+
+.tbwrap { overflow-x: auto; border: var(--hairline) solid var(--separator); border-radius: var(--radius-lg);
+  scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+table.tb { width: 100%; border-collapse: collapse; font-size: var(--text-md); }
+.tb th { text-align: left; padding: var(--space-2) var(--space-3); background: var(--bg-stripe);
+  font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: var(--tracking-wide); font-weight: var(--weight-semibold);
+  color: var(--text-faint); border-bottom: var(--hairline) solid var(--separator); white-space: nowrap; }
+.tb th + th { border-left: var(--hairline) solid var(--separator); }
+.tb td { padding: 6px var(--space-3); height: var(--row-h-table); vertical-align: top; }
+.tb tbody tr:nth-child(even) { background: var(--bg-stripe); }
+.tb code { font-size: var(--text-sm); }
+.tb .enumv { color: var(--cat-3); font-weight: var(--weight-semibold); }
+.tb .attrn { color: var(--text); font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-2); }
+.tb .attrn::before { content: ""; width: var(--dot); height: var(--dot); border-radius: var(--radius-pill); background: var(--kind-at); flex: none; }
+.tb .enumlist { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
+.tb .none { color: var(--text-faint); }
+
+.backbtn { display: none; }
+
+/* =====================================================================
+   POINTEUR TACTILE
+   ===================================================================== */
+@media (pointer: coarse) {
+  .tabs { padding: 0; gap: 0; }
+  .tabs button { height: var(--control-h); }
+  .search input { font-size: var(--text-lg); }
+  .chip button::after { content: ""; position: absolute; left: 50%; top: 50%; width: var(--control-h-touch); height: var(--control-h-touch); transform: translate(-50%, -50%); }
+}
+
+/* =====================================================================
+   ÉCRAN ÉTROIT : un volet à la fois
+   ===================================================================== */
+@media (max-width: 820px) {
+  .files { order: 3; flex-basis: 100%; }
+  .left { width: 100%; min-width: 0; border-right: none; }
+  .right { display: none; position: fixed; inset: 0; z-index: 40; padding-top: calc(var(--control-h-touch) + env(safe-area-inset-top)); }
+  body.showdetail .right { display: block; }
+  body.showdetail .left { display: none; }
+  body.showdetail .backbtn {
+    display: flex; align-items: center; gap: var(--space-1); position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    height: calc(var(--control-h-touch) + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--space-3) 0 calc(var(--space-2) + env(safe-area-inset-left));
+    background: var(--bg-sidebar); border: 0; border-bottom: var(--hairline) solid var(--separator);
+    color: var(--accent); font-size: var(--text-lg); cursor: pointer; text-align: left;
+  }
+  .dt { padding: var(--space-4) calc(var(--space-4) + env(safe-area-inset-right)) calc(var(--space-7) + env(safe-area-inset-bottom)) calc(var(--space-4) + env(safe-area-inset-left)); }
+  .kv .pair { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* Table en paires libellé / valeur sous 620px : rien ne se coupe à droite */
+@media (max-width: 620px) {
+  .tbwrap { border: 0; border-radius: 0; overflow: visible; }
+  table.tb, .tb tbody, .tb tr, .tb td { display: block; width: 100%; }
+  .tb thead { display: none; }
+  .tb tr { background: var(--bg-inset) !important; border-radius: var(--radius-lg); padding: var(--space-1) var(--space-3); }
+  .tb tr + tr { margin-top: var(--space-2); }
+  .tb td { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 0 var(--space-3); height: auto; padding: var(--space-2) 0; overflow-wrap: anywhere; }
+  .tb td + td { border-top: var(--hairline) solid var(--separator); }
+  .tb td::before { content: attr(data-label); color: var(--text-muted); grid-row: span 2; }
+  .tb td > * { grid-column: 2; }
+}
+</style>
+</head>
+<body>
+<div class="hd">
+  <h1>XSD Explorer</h1>
+  <div class="files" id="files"></div>
+  <div class="actions">
+    <button class="btn ghost" id="btnSample" type="button">Exemple</button>
+    <button class="btn" id="btnAdd" type="button"><svg class="i i-s" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>Ajouter des XSD</button>
+  </div>
+  <input id="fileInput" type="file" accept=".xsd,.xml,text/xml" multiple style="display:none">
+</div>
+<div id="errbar"></div>
+<div id="warnbar"></div>
+<div class="body" id="body">
+  <div class="left" id="left"></div>
+  <div class="right" id="right"></div>
+  <button class="backbtn" id="backbtn" type="button"><svg class="i" viewBox="0 0 16 16" aria-hidden="true" data-bold><path d="M10 3 5 8l5 5"/></svg>Arbre</button>
+</div>
+
+<script>
+"use strict";
+const XS = "http://www.w3.org/2001/XMLSchema";
+
+/* ---------- Exemples ---------- */
+const SAMPLE_MAIN = `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:cl="urn:demo:codelists" targetNamespace="urn:demo:invoice" xmlns:inv="urn:demo:invoice" elementFormDefault="qualified">
+  <xs:import namespace="urn:demo:codelists" schemaLocation="codelists.xsd"/>
+  <xs:element name="Invoice" type="inv:InvoiceType"><xs:annotation><xs:documentation>Racine du document de facturation electronique (demo).</xs:documentation></xs:annotation></xs:element>
+  <xs:complexType name="InvoiceType"><xs:annotation><xs:documentation>Structure principale de la facture.</xs:documentation></xs:annotation>
+    <xs:sequence>
+      <xs:element name="ID" type="xs:string"><xs:annotation><xs:documentation>Identifiant unique de la facture.</xs:documentation></xs:annotation></xs:element>
+      <xs:element name="IssueDate" type="xs:date"/>
+      <xs:element name="Currency" type="cl:CurrencyCodeType"><xs:annotation><xs:documentation>Devise (ISO 4217 - referencee par import).</xs:documentation></xs:annotation></xs:element>
+      <xs:element name="Party" type="inv:PartyType" minOccurs="2" maxOccurs="2"/>
+      <xs:choice>
+        <xs:element name="Line" type="inv:LineType" maxOccurs="unbounded"/>
+        <xs:element name="SummaryOnly" type="xs:boolean"/>
+      </xs:choice>
+      <xs:element name="Total" type="inv:AmountType"/>
+    </xs:sequence>
+    <xs:attribute name="schemaVersion" type="xs:string" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="PartyType"><xs:sequence>
+      <xs:element name="Name" type="xs:string"/>
+      <xs:element name="VATNumber" type="inv:VATNumberType" minOccurs="0"/>
+      <xs:element name="Country" type="cl:CountryCodeType"/>
+    </xs:sequence>
+    <xs:attribute name="role" use="required"><xs:simpleType><xs:restriction base="xs:string">
+      <xs:enumeration value="Seller"><xs:annotation><xs:documentation>Fournisseur emetteur.</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="Buyer"><xs:annotation><xs:documentation>Client destinataire.</xs:documentation></xs:annotation></xs:enumeration>
+    </xs:restriction></xs:simpleType></xs:attribute>
+  </xs:complexType>
+  <xs:complexType name="LineType"><xs:sequence>
+      <xs:element name="Description" type="xs:string"/>
+      <xs:element name="Quantity" type="xs:decimal"/>
+      <xs:element name="Amount" type="inv:AmountType"/>
+    </xs:sequence>
+    <xs:attribute name="lineNumber" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="AmountType"><xs:simpleContent><xs:extension base="xs:decimal">
+    <xs:attribute name="currencyID" type="cl:CurrencyCodeType" use="optional"/>
+  </xs:extension></xs:simpleContent></xs:complexType>
+  <xs:simpleType name="VATNumberType"><xs:annotation><xs:documentation>Numero TVA, format CHE + 9 chiffres (demo).</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:string"><xs:pattern value="CHE-[0-9]{3}\\.[0-9]{3}\\.[0-9]{3}"/><xs:maxLength value="15"/></xs:restriction>
+  </xs:simpleType>
+</xs:schema>`;
+
+const SAMPLE_CODELISTS = `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:demo:codelists" elementFormDefault="qualified">
+  <xs:simpleType name="CurrencyCodeType"><xs:annotation><xs:documentation>Codes devise ISO 4217 (extrait).</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CHF"><xs:annotation><xs:documentation>Franc suisse</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="EUR"><xs:annotation><xs:documentation>Euro</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="USD"><xs:annotation><xs:documentation>Dollar americain</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="GBP"><xs:annotation><xs:documentation>Livre sterling</xs:documentation></xs:annotation></xs:enumeration>
+    </xs:restriction></xs:simpleType>
+  <xs:simpleType name="CountryCodeType"><xs:annotation><xs:documentation>Codes pays ISO 3166-1 alpha-2 (extrait).</xs:documentation></xs:annotation>
+    <xs:restriction base="xs:string"><xs:length value="2"/>
+      <xs:enumeration value="CH"><xs:annotation><xs:documentation>Suisse</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="FR"><xs:annotation><xs:documentation>France</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="DE"><xs:annotation><xs:documentation>Allemagne</xs:documentation></xs:annotation></xs:enumeration>
+      <xs:enumeration value="LU"><xs:annotation><xs:documentation>Luxembourg</xs:documentation></xs:annotation></xs:enumeration>
+    </xs:restriction></xs:simpleType>
+</xs:schema>`;
+
+/* ---------- Helpers DOM ---------- */
+const kids = (n) => n ? Array.from(n.children) : [];
+const byLocal = (n, name) => kids(n).filter((c) => c.localName === name);
+const firstLocal = (n, name) => kids(n).find((c) => c.localName === name);
+
+function getDocs(node) {
+  if (!node) return [];
+  const ann = firstLocal(node, "annotation");
+  if (!ann) return [];
+  return byLocal(ann, "documentation").map((d) => ({
+    lang: d.getAttribute("xml:lang") || d.getAttributeNS("http://www.w3.org/XML/1998/namespace", "lang") || "",
+    text: (d.textContent || "").trim(),
+  })).filter((d) => d.text);
+}
+function resolveQName(qname, ctxNode, tns) {
+  if (!qname) return null;
+  const i = qname.indexOf(":");
+  const prefix = i >= 0 ? qname.slice(0, i) : null;
+  const local = i >= 0 ? qname.slice(i + 1) : qname;
+  let ns = null;
+  try { ns = ctxNode.lookupNamespaceURI(prefix); } catch (e) {}
+  if (ns == null) ns = prefix ? "" : (tns || "");
+  return { ns, local, qname };
+}
+function occursOf(n) {
+  const min = n.getAttribute("minOccurs") || "1";
+  let max = n.getAttribute("maxOccurs") || "1";
+  if (max === "unbounded") max = "\u221E";
+  return { min, max, label: min + ".." + max };
+}
+
+/* ---------- Modèle global ---------- */
+function buildModel(files) {
+  const registry = { element:new Map(), complexType:new Map(), simpleType:new Map(), group:new Map(), attributeGroup:new Map(), attribute:new Map() };
+  const schemas = [], errors = [], refs = [];
+  for (const f of files) {
+    let doc;
+    try { doc = new DOMParser().parseFromString(f.text, "text/xml"); }
+    catch (e) { errors.push(f.name + " : echec du parsing XML"); continue; }
+    if (doc.getElementsByTagName("parsererror").length > 0) { errors.push(f.name + " : XML invalide"); continue; }
+    const root = doc.documentElement;
+    if (!root || root.localName !== "schema" || root.namespaceURI !== XS) { errors.push(f.name + " : racine non xs:schema"); continue; }
+    const tns = root.getAttribute("targetNamespace") || "";
+    schemas.push({ file:f.name, tns, root });
+    for (const c of kids(root)) {
+      const kind = ({element:"element",complexType:"complexType",simpleType:"simpleType",group:"group",attributeGroup:"attributeGroup",attribute:"attribute"})[c.localName];
+      if (kind) {
+        const name = c.getAttribute("name");
+        if (name) { const key = tns + "::" + name; if (!registry[kind].has(key)) registry[kind].set(key, {dom:c, tns, name, file:f.name, kind}); }
+      }
+      if (c.localName === "import" || c.localName === "include" || c.localName === "redefine") {
+        refs.push({ kind:c.localName, namespace:c.getAttribute("namespace")||"", location:c.getAttribute("schemaLocation")||"", from:f.name });
+      }
+    }
+  }
+  const fileNames = new Set(files.map((f) => f.name.toLowerCase()));
+  const tnsSet = new Set(schemas.map((s) => s.tns));
+  const missing = refs.filter((r) => {
+    if (r.kind === "import" && r.namespace && tnsSet.has(r.namespace)) return false;
+    if (r.location) { const base = r.location.split("/").pop().toLowerCase(); if (fileNames.has(base)) return false; }
+    return !(r.kind === "import" && !r.location && tnsSet.has(r.namespace));
+  });
+  return { registry, schemas, errors, missing };
+}
+function makeLookup(registry) {
+  return (kind, ns, local) => {
+    const exact = registry[kind].get(ns + "::" + local); if (exact) return Object.assign({}, exact);
+    const noNs = registry[kind].get("::" + local); if (noNs) return Object.assign({}, noNs);
+    for (const [, v] of registry[kind]) if (v.name === local) return Object.assign({}, v);
+    return null;
+  };
+}
+
+/* ---------- Types simples ---------- */
+function resolveSimpleInfo(stDom, ctx, lookup, depth, seen) {
+  depth = depth || 0; seen = seen || new Set();
+  const info = { chain:[], enums:[], facets:[], unionMembers:[], listItem:null, builtinBase:null };
+  if (!stDom || depth > 12) return info;
+  const restriction = firstLocal(stDom, "restriction");
+  const union = firstLocal(stDom, "union");
+  const list = firstLocal(stDom, "list");
+  if (restriction) {
+    for (const c of kids(restriction)) {
+      if (c.localName === "enumeration") {
+        const docs = getDocs(c);
+        info.enums.push({ value:c.getAttribute("value")||"", doc:docs.map((d)=>d.text).join(" \u2014 ") });
+      } else if (["pattern","length","minLength","maxLength","totalDigits","fractionDigits","minInclusive","maxInclusive","minExclusive","maxExclusive","whiteSpace"].includes(c.localName)) {
+        info.facets.push({ name:c.localName, value:c.getAttribute("value")||"" });
+      }
+    }
+    const baseQ = restriction.getAttribute("base");
+    if (baseQ) {
+      const q = resolveQName(baseQ, restriction, ctx.tns);
+      if (q.ns === XS) { info.builtinBase = "xs:"+q.local; info.chain.push({name:"xs:"+q.local, builtin:true}); }
+      else {
+        const key = q.ns + "::" + q.local;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const baseEntry = lookup("simpleType", q.ns, q.local);
+          if (baseEntry) {
+            info.chain.push({ name:baseEntry.name, file:baseEntry.file, entry:baseEntry });
+            const baseInfo = resolveSimpleInfo(baseEntry.dom, {tns:baseEntry.tns}, lookup, depth+1, seen);
+            info.enums = baseInfo.enums.concat(info.enums);
+            info.facets = baseInfo.facets.concat(info.facets);
+            info.chain = info.chain.concat(baseInfo.chain);
+            if (baseInfo.builtinBase) info.builtinBase = baseInfo.builtinBase;
+          } else info.chain.push({ name:baseQ, unresolved:true });
+        }
+      }
+    } else {
+      const inline = firstLocal(restriction, "simpleType");
+      if (inline) {
+        const sub = resolveSimpleInfo(inline, ctx, lookup, depth+1, seen);
+        info.enums = sub.enums.concat(info.enums);
+        info.facets = sub.facets.concat(info.facets);
+        info.chain = info.chain.concat(sub.chain);
+        info.builtinBase = sub.builtinBase || info.builtinBase;
+      }
+    }
+  } else if (union) {
+    const members = (union.getAttribute("memberTypes")||"").split(/\s+/).filter(Boolean);
+    for (const m of members) {
+      const q = resolveQName(m, union, ctx.tns);
+      if (q.ns === XS) { info.unionMembers.push("xs:"+q.local); continue; }
+      const entry = lookup("simpleType", q.ns, q.local);
+      info.unionMembers.push(entry ? entry.name : m);
+      if (entry) { const sub = resolveSimpleInfo(entry.dom, {tns:entry.tns}, lookup, depth+1, seen); info.enums = info.enums.concat(sub.enums); }
+    }
+    for (const inline of byLocal(union, "simpleType")) {
+      const sub = resolveSimpleInfo(inline, ctx, lookup, depth+1, seen);
+      info.enums = info.enums.concat(sub.enums); info.unionMembers.push("(inline)");
+    }
+  } else if (list) {
+    const itemQ = list.getAttribute("itemType");
+    if (itemQ) {
+      const q = resolveQName(itemQ, list, ctx.tns);
+      info.listItem = q.ns === XS ? "xs:"+q.local : q.local;
+      if (q.ns !== XS) { const entry = lookup("simpleType", q.ns, q.local); if (entry) { const sub = resolveSimpleInfo(entry.dom, {tns:entry.tns}, lookup, depth+1, seen); info.enums = sub.enums; } }
+    }
+  }
+  return info;
+}
+
+/* ---------- Types complexes ---------- */
+function getComplexModel(ctDom, ctx, lookup, depth, seen) {
+  depth = depth || 0; seen = seen || new Set();
+  const model = { compositor:null, attributes:[], baseName:null, simpleBase:null, derivation:null };
+  if (!ctDom || depth > 12) return model;
+  const collectAttrs = (parent) => {
+    for (const c of kids(parent)) {
+      if (c.localName === "attribute") model.attributes.push({ dom:c, tns:ctx.tns, file:ctx.file });
+      if (c.localName === "attributeGroup") {
+        const refQ = c.getAttribute("ref");
+        if (refQ) { const q = resolveQName(refQ, c, ctx.tns); const key = "AG:"+q.ns+"::"+q.local;
+          if (!seen.has(key)) { seen.add(key); const ag = lookup("attributeGroup", q.ns, q.local); if (ag) collectAttrs(ag.dom); } }
+      }
+      if (c.localName === "anyAttribute") model.attributes.push({ any:true, dom:c });
+    }
+  };
+  const cc = firstLocal(ctDom, "complexContent");
+  const sc = firstLocal(ctDom, "simpleContent");
+  if (cc || sc) {
+    const container = cc || sc;
+    const der = firstLocal(container, "extension") || firstLocal(container, "restriction");
+    if (der) {
+      model.derivation = der.localName;
+      const baseQ = der.getAttribute("base");
+      if (baseQ) {
+        const q = resolveQName(baseQ, der, ctx.tns);
+        if (q.ns === XS) model.simpleBase = "xs:"+q.local;
+        else {
+          model.baseName = q.local;
+          const key = "CT:"+q.ns+"::"+q.local;
+          if (cc && der.localName === "extension" && !seen.has(key)) {
+            seen.add(key);
+            const baseEntry = lookup("complexType", q.ns, q.local);
+            if (baseEntry) {
+              const bm = getComplexModel(baseEntry.dom, {tns:baseEntry.tns, file:baseEntry.file}, lookup, depth+1, seen);
+              model.attributes = model.attributes.concat(bm.attributes);
+              model.inheritedCompositor = bm.compositor || bm.inheritedCompositor || null;
+              model.inheritedCtx = bm.compositorCtx || {tns:baseEntry.tns, file:baseEntry.file};
+            }
+          }
+          if (sc) {
+            const st = lookup("simpleType", q.ns, q.local);
+            if (st) model.simpleTypeEntry = st;
+            else { const ct = lookup("complexType", q.ns, q.local);
+              if (ct) { const bm = getComplexModel(ct.dom, {tns:ct.tns, file:ct.file}, lookup, depth+1, seen);
+                model.attributes = model.attributes.concat(bm.attributes);
+                model.simpleBase = bm.simpleBase || model.simpleBase;
+                if (bm.simpleTypeEntry) model.simpleTypeEntry = bm.simpleTypeEntry; } }
+          }
+        }
+      }
+      const comp = kids(der).find((c) => ["sequence","choice","all","group"].includes(c.localName));
+      if (comp) { model.compositor = comp; model.compositorCtx = ctx; }
+      collectAttrs(der);
+    }
+  } else {
+    const comp = kids(ctDom).find((c) => ["sequence","choice","all","group"].includes(c.localName));
+    if (comp) { model.compositor = comp; model.compositorCtx = ctx; }
+    collectAttrs(ctDom);
+  }
+  return model;
+}
+
+/* ---------- Particules ---------- */
+function particlesToNodes(comp, ctx, lookup, seen) {
+  seen = seen || new Set();
+  if (!comp) return [];
+  const out = [];
+  const walk = (node) => {
+    for (const c of kids(node)) {
+      const ln = c.localName;
+      if (ln === "element") out.push({ kind:"element", dom:c, ctx });
+      else if (ln === "any") out.push({ kind:"any", dom:c, ctx });
+      else if (ln === "sequence" || ln === "all") {
+        const occ = occursOf(c);
+        if (occ.label === "1..1") walk(c);
+        else out.push({ kind:"compositor", comp:ln, dom:c, ctx });
+      } else if (ln === "choice") out.push({ kind:"compositor", comp:"choice", dom:c, ctx });
+      else if (ln === "group") {
+        const refQ = c.getAttribute("ref");
+        if (refQ) {
+          const q = resolveQName(refQ, c, ctx.tns); const key = "G:"+q.ns+"::"+q.local;
+          if (seen.has(key)) continue; seen.add(key);
+          const g = lookup("group", q.ns, q.local);
+          if (g) {
+            const inner = kids(g.dom).find((x) => ["sequence","choice","all"].includes(x.localName));
+            if (inner) {
+              const occ = occursOf(c);
+              if (inner.localName === "choice" || occ.label !== "1..1")
+                out.push({ kind:"compositor", comp:inner.localName, dom:inner, occDom:c, ctx:{tns:g.tns, file:g.file} });
+              else for (const sub of particlesToNodes(inner, {tns:g.tns, file:g.file}, lookup, seen)) out.push(sub);
+            }
+          } else out.push({ kind:"unresolvedGroup", name:refQ, dom:c, ctx });
+        }
+      }
+    }
+  };
+  if (comp.localName === "choice") out.push({ kind:"compositor", comp:"choice", dom:comp, ctx });
+  else walk(comp);
+  return out;
+}
+
+/* ---------- Infos élément / attribut ---------- */
+function elementInfo(dom, ctx, lookup) {
+  let target = dom, targetCtx = ctx, isRef = false;
+  const refQ = dom.getAttribute("ref");
+  if (refQ) { const q = resolveQName(refQ, dom, ctx.tns); const g = lookup("element", q.ns, q.local);
+    if (g) { target = g.dom; targetCtx = {tns:g.tns, file:g.file}; isRef = true; } }
+  const name = target.getAttribute("name") || refQ || "(anonyme)";
+  const occ = occursOf(dom);
+  const docs = getDocs(dom).concat(isRef ? getDocs(target) : []);
+  let typeName=null, typeKind=null, typeEntry=null, inlineType=null;
+  const typeQ = target.getAttribute("type");
+  if (typeQ) {
+    const q = resolveQName(typeQ, target, targetCtx.tns);
+    if (q.ns === XS) { typeName = "xs:"+q.local; typeKind = "builtin"; }
+    else { const ct = lookup("complexType", q.ns, q.local); const st = !ct && lookup("simpleType", q.ns, q.local);
+      if (ct) { typeName = ct.name; typeKind = "complexType"; typeEntry = ct; }
+      else if (st) { typeName = st.name; typeKind = "simpleType"; typeEntry = st; }
+      else { typeName = typeQ; typeKind = "unresolved"; } }
+  } else {
+    const ict = firstLocal(target, "complexType"); const ist = firstLocal(target, "simpleType");
+    if (ict) { typeKind = "complexType"; inlineType = ict; typeName = "(complexType inline)"; }
+    else if (ist) { typeKind = "simpleType"; inlineType = ist; typeName = "(simpleType inline)"; }
+    else { typeKind = "builtin"; typeName = "xs:anyType"; }
+  }
+  const nillable = target.getAttribute("nillable") === "true";
+  return { name, occ, docs, typeName, typeKind, typeEntry, inlineType, isRef, targetDom:target, targetCtx, nillable };
+}
+function attributeInfo(attr, lookup) {
+  if (attr.any) return { name:"anyAttribute", typeName:"\u2014", use:"\u2014", docs:[], enums:[], facets:[] };
+  const dom = attr.dom; let target = dom, ctx = {tns:attr.tns};
+  const refQ = dom.getAttribute("ref");
+  if (refQ) { const q = resolveQName(refQ, dom, attr.tns); const g = lookup("attribute", q.ns, q.local);
+    if (g) { target = g.dom; ctx = {tns:g.tns}; } }
+  const name = target.getAttribute("name") || refQ || "(?)";
+  const use = dom.getAttribute("use") || "optional";
+  const fixed = dom.getAttribute("fixed"); const dflt = dom.getAttribute("default");
+  const docs = getDocs(dom).concat(target !== dom ? getDocs(target) : []);
+  let typeName = "xs:anySimpleType", enums = [], facets = [], typeEntry = null;
+  const typeQ = target.getAttribute("type");
+  if (typeQ) {
+    const q = resolveQName(typeQ, target, ctx.tns);
+    if (q.ns === XS) typeName = "xs:"+q.local;
+    else { const st = lookup("simpleType", q.ns, q.local);
+      if (st) { typeName = st.name; typeEntry = st; const info = resolveSimpleInfo(st.dom, {tns:st.tns}, lookup); enums = info.enums; facets = info.facets; }
+      else typeName = typeQ; }
+  } else { const ist = firstLocal(target, "simpleType");
+    if (ist) { typeName = "(inline)"; const info = resolveSimpleInfo(ist, ctx, lookup); enums = info.enums; facets = info.facets; } }
+  return { name, use, fixed, default:dflt, docs, typeName, typeEntry, enums, facets };
+}
+
+/* ============================================================
+   ÉTAT & RENDU
+   ============================================================ */
+const state = { files:[], tab:"elements", query:"", expanded:new Set(), selectedPath:null, selectedNode:null };
+let model = buildModel([]); let lookup = makeLookup(model.registry);
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+function rebuild() { model = buildModel(state.files); lookup = makeLookup(model.registry); }
+
+/* enfants d'un nœud d'arbre (mirroir de la version React) */
+function childrenOf(node) {
+  if (node.kind === "compositor") {
+    const out = [];
+    for (const c of kids(node.dom)) {
+      if (c.localName === "element") out.push({ kind:"element", dom:c, ctx:node.ctx });
+      else if (["sequence","all"].includes(c.localName)) {
+        const o = occursOf(c);
+        if (o.label === "1..1") for (const sub of particlesToNodes(c, node.ctx, lookup)) out.push(sub);
+        else out.push({ kind:"compositor", comp:c.localName, dom:c, ctx:node.ctx });
+      } else if (c.localName === "choice") out.push({ kind:"compositor", comp:"choice", dom:c, ctx:node.ctx });
+      else if (c.localName === "any") out.push({ kind:"any", dom:c, ctx:node.ctx });
+      else if (c.localName === "group") for (const sub of particlesToNodes(node.dom, node.ctx, lookup)) { /* via particles */ }
+    }
+    return out;
+  }
+  let ctDom = null, ctx = node.ctx, info = null;
+  if (node.kind === "typeRoot") { ctDom = node.entry.dom; ctx = {tns:node.entry.tns, file:node.entry.file}; }
+  else if (node.kind === "element" || node.kind === "globalElement") {
+    info = elementInfo(node.dom, node.ctx, lookup);
+    if (info.typeKind !== "complexType") return [];
+    if (info.typeEntry) { ctDom = info.typeEntry.dom; ctx = {tns:info.typeEntry.tns, file:info.typeEntry.file}; }
+    else if (info.inlineType) { ctDom = info.inlineType; ctx = info.targetCtx; }
+  }
+  if (!ctDom) return [];
+  const m = getComplexModel(ctDom, ctx, lookup);
+  const out = [];
+  if (m.inheritedCompositor) out.push(...particlesToNodes(m.inheritedCompositor, m.inheritedCtx || ctx, lookup));
+  if (m.compositor) out.push(...particlesToNodes(m.compositor, m.compositorCtx || ctx, lookup));
+  for (const a of m.attributes) out.push({ kind:"attribute", attr:a });
+  return out;
+}
+
+function nodeMeta(node) {
+  let label, cls, occ=null, typeLabel="", hasChildren=false, hasEnums=false;
+  if (node.kind === "element" || node.kind === "globalElement") {
+    const info = elementInfo(node.dom, node.ctx, lookup);
+    label = info.name; cls = "el"; typeLabel = info.typeName;
+    occ = node.kind === "globalElement" ? null : info.occ;
+    hasChildren = info.typeKind === "complexType";
+    if (info.typeKind === "simpleType") {
+      const st = info.typeEntry ? info.typeEntry.dom : info.inlineType;
+      const si = resolveSimpleInfo(st, info.typeEntry ? {tns:info.typeEntry.tns} : node.ctx, lookup);
+      hasEnums = si.enums.length > 0;
+    }
+  } else if (node.kind === "compositor") {
+    label = node.comp; cls = "ch"; occ = occursOf(node.occDom || node.dom);
+    if (occ.label === "1..1" && node.comp !== "choice") occ = null;
+    hasChildren = true; typeLabel = node.comp === "choice" ? "un seul parmi :" : "";
+  } else if (node.kind === "typeRoot") {
+    label = node.entry.name; cls = node.entry.kind === "complexType" ? "ct" : "st"; typeLabel = node.entry.kind;
+    hasChildren = node.entry.kind === "complexType";
+    if (node.entry.kind === "simpleType") { const si = resolveSimpleInfo(node.entry.dom, {tns:node.entry.tns}, lookup); hasEnums = si.enums.length > 0; }
+  } else if (node.kind === "attribute") {
+    const ai = attributeInfo(node.attr, lookup);
+    label = "@" + ai.name; cls = "at"; typeLabel = ai.typeName;
+    occ = { label: ai.use === "required" ? "1..1" : "0..1", req: ai.use === "required" };
+    hasEnums = ai.enums.length > 0;
+  } else if (node.kind === "any") { label = "any"; cls = "ch"; typeLabel = "wildcard"; occ = occursOf(node.dom); }
+  else { label = node.name || "?"; cls = "ch"; typeLabel = "non resolu"; }
+  return { label, cls, occ, typeLabel, hasChildren, hasEnums };
+}
+
+function renderTreeNode(node, path, depth, container) {
+  const m = nodeMeta(node);
+  const isOpen = state.expanded.has(path);
+  const row = el("div", "row" + (state.selectedPath === path ? " sel" : ""));
+  const tw = el("span", "tw" + (m.hasChildren ? (isOpen ? " open" : "") : " leaf"));
+  if (m.hasChildren) tw.innerHTML = '<svg class="i i-s" viewBox="0 0 16 16" aria-hidden="true" data-bold><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
+  tw.onclick = (e) => { e.stopPropagation(); if (m.hasChildren) toggle(path); };
+  row.appendChild(tw);
+  row.appendChild(el("span", "nm " + m.cls, m.label));
+  if (m.occ) { const o = el("span", "occ" + ((m.occ.label && m.occ.label.charAt(0) === "1") || m.occ.req ? " req" : ""), m.occ.label); row.appendChild(o); }
+  if (m.hasEnums) row.appendChild(el("span", "badge-enum", "enum"));
+  if (m.typeLabel) row.appendChild(el("span", "ty", m.typeLabel));
+  row.onclick = () => { selectNode(node, path); if (m.hasChildren && !state.expanded.has(path)) toggle(path); };
+  container.appendChild(row);
+  if (isOpen && m.hasChildren) {
+    const guide = el("div", "guide");
+    const ch = childrenOf(node);
+    ch.forEach((c, i) => renderTreeNode(c, path + "/" + i, depth + 1, guide));
+    container.appendChild(guide);
+  }
+}
+
+function toggle(path) { if (state.expanded.has(path)) state.expanded.delete(path); else state.expanded.add(path); renderTree(); }
+function selectNode(node, path) { state.selectedNode = node; state.selectedPath = path; document.body.classList.add("showdetail"); renderTree(); renderDetail(); }
+function selectType(entry) { selectNode({ kind:"typeRoot", entry }, "type-link::" + entry.tns + "::" + entry.name); }
+
+/* ---------- Rendu de l'entête (fichiers) ---------- */
+function renderHeader() {
+  const fc = $("files"); fc.innerHTML = "";
+  state.files.forEach((f) => {
+    const chip = el("span", "chip"); chip.appendChild(document.createTextNode(f.name));
+    const b = el("button"); b.type = "button"; b.title = "Retirer"; b.setAttribute("aria-label", "Retirer " + f.name);
+    b.innerHTML = '<svg class="i i-s" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>';
+    b.onclick = () => { state.files = state.files.filter((x) => x.name !== f.name); state.selectedNode = null; state.selectedPath = null; state.expanded = new Set(); rebuild(); renderAll(); };
+    chip.appendChild(b); fc.appendChild(chip);
+  });
+}
+
+/* ---------- Bandeaux ---------- */
+function renderBars() {
+  const eb = $("errbar"), wb = $("warnbar");
+  eb.className = ""; eb.innerHTML = ""; wb.className = ""; wb.innerHTML = "";
+  if (model.errors.length) { eb.className = "errbar"; eb.textContent = model.errors.join(" \u00B7 "); }
+  if (model.missing.length) {
+    wb.className = "warnbar";
+    wb.appendChild(document.createTextNode("References non resolues \u2014 ajoutez ces fichiers : "));
+    model.missing.forEach((mi) => {
+      const c = el("code", null, (mi.location || mi.namespace) + " (" + mi.kind + " depuis " + mi.from + ")");
+      c.className = "missing"; wb.appendChild(c);
+    });
+  }
+}
+
+/* ---------- Rendu volet gauche ---------- */
+function renderLeft() {
+  const left = $("left"); left.innerHTML = "";
+  if (model.schemas.length === 0) {
+    const drop = el("div", "drop");
+    drop.innerHTML = '<svg class="i" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9M6 8.5l4 4 4-4M4 16h12"/></svg>'
+      + '<strong>Glissez vos fichiers .xsd ici</strong>'
+      + '<p>Sch\u00E9ma principal et fichiers import\u00E9s ou inclus, pour r\u00E9soudre les codelists.</p>'
+      + '<p class="hint">ou cliquez pour parcourir, ou chargez l\u2019exemple en haut</p>';
+    drop.onclick = () => $("fileInput").click();
+    drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+    drop.ondragleave = () => drop.classList.remove("over");
+    drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); };
+    left.appendChild(drop);
+    return;
+  }
+  const ge = Array.from(model.registry.element.values());
+  const types = [].concat(Array.from(model.registry.complexType.values()), Array.from(model.registry.simpleType.values())).sort((a,b)=>a.name.localeCompare(b.name));
+  const tabs = el("div", "tabs");
+  const tEl = el("button", state.tab === "elements" ? "on" : "", "\u00C9l\u00E9ments (" + ge.length + ")");
+  const tTy = el("button", state.tab === "types" ? "on" : "", "Types (" + types.length + ")");
+  tEl.onclick = () => { state.tab = "elements"; renderLeft(); };
+  tTy.onclick = () => { state.tab = "types"; renderLeft(); };
+  tabs.appendChild(tEl); tabs.appendChild(tTy); left.appendChild(tabs);
+  const search = el("div", "search"); const inp = el("input");
+  inp.placeholder = "Rechercher un element ou un type\u2026"; inp.value = state.query;
+  inp.oninput = (e) => { state.query = e.target.value; renderTree(); };
+  search.appendChild(inp); left.appendChild(search);
+  const tree = el("div", "tree"); tree.id = "tree"; left.appendChild(tree);
+  renderTree();
+}
+
+function renderTree() {
+  const tree = $("tree"); if (!tree) return; tree.innerHTML = "";
+  const q = state.query.trim().toLowerCase();
+  if (state.tab === "elements") {
+    let ge = Array.from(model.registry.element.values());
+    if (q) ge = ge.filter((e) => e.name.toLowerCase().includes(q));
+    if (!ge.length) { tree.appendChild(emptyMsg(q)); return; }
+    ge.forEach((e) => renderTreeNode({ kind:"globalElement", dom:e.dom, ctx:{tns:e.tns, file:e.file} }, "ge::" + e.tns + "::" + e.name, 0, tree));
+  } else {
+    let types = [].concat(Array.from(model.registry.complexType.values()), Array.from(model.registry.simpleType.values())).sort((a,b)=>a.name.localeCompare(b.name));
+    if (q) types = types.filter((t) => t.name.toLowerCase().includes(q));
+    if (!types.length) { tree.appendChild(emptyMsg(q)); return; }
+    types.forEach((t) => renderTreeNode({ kind:"typeRoot", entry:t }, "ty::" + t.kind + "::" + t.tns + "::" + t.name, 0, tree));
+  }
+}
+function emptyMsg(q) { return el("div", "empty", "Aucun resultat" + (q ? " pour \u00AB " + state.query + " \u00BB" : "") + "."); }
+
+/* ---------- Rendu détail ---------- */
+function tableEl(headers, rows) {
+  const t = el("table", "tb"); const thead = el("thead"); const tr = el("tr");
+  headers.forEach((h) => { const th = el("th"); if (h && h.w) th.style.width = h.w; th.textContent = h.t != null ? h.t : h; tr.appendChild(th); });
+  thead.appendChild(tr); t.appendChild(thead);
+  const tb = el("tbody");
+  rows.forEach((r) => { const row = el("tr"); r.forEach((cell, i) => { const td = el("td"); const h = headers[i]; td.dataset.label = h && h.t != null ? h.t : h; if (cell instanceof Node) td.appendChild(cell); else td.innerHTML = cell; row.appendChild(td); }); tb.appendChild(row); });
+  t.appendChild(tb); const wrap = el("div", "tbwrap"); wrap.appendChild(t); return wrap;
+}
+function secEl(label, n) { const d = el("div", "sec", label + " "); d.appendChild(el("span", "count", String(n))); return d; }
+function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+
+function renderDetail() {
+  const right = $("right"); right.innerHTML = "";
+  const node = state.selectedNode;
+  if (!node) { right.appendChild(el("div", "empty", "S\u00E9lectionnez un n\u0153ud dans l'arbre pour afficher ses d\u00E9tails : documentation, type, attributs, facettes et \u00E9num\u00E9rations.")); return; }
+  const dt = el("div", "dt");
+  let title, cls, kindLabel, meta = [], docs = [], simpleInfo = null, attrs = [], typeName = null, typeEntry = null;
+
+  if (node.kind === "attribute") {
+    const ai = attributeInfo(node.attr, lookup);
+    title = "@" + ai.name; cls = "at"; kindLabel = "attribut";
+    meta.push("use: " + ai.use); if (ai.fixed) meta.push("fixed: " + ai.fixed); if (ai.default) meta.push("default: " + ai.default);
+    docs = ai.docs; typeName = ai.typeName; typeEntry = ai.typeEntry;
+    simpleInfo = { enums:ai.enums, facets:ai.facets, chain:[], unionMembers:[], listItem:null };
+  } else if (node.kind === "typeRoot") {
+    const e = node.entry; title = e.name; cls = e.kind === "complexType" ? "ct" : "st"; kindLabel = e.kind;
+    meta.push("fichier: " + e.file); if (e.tns) meta.push("ns: " + e.tns);
+    docs = getDocs(e.dom);
+    if (e.kind === "simpleType") simpleInfo = resolveSimpleInfo(e.dom, {tns:e.tns}, lookup);
+    else { const m = getComplexModel(e.dom, {tns:e.tns, file:e.file}, lookup);
+      attrs = m.attributes.map((a) => attributeInfo(a, lookup));
+      if (m.baseName) meta.push(m.derivation + " de " + m.baseName);
+      if (m.simpleBase) meta.push("contenu simple: " + m.simpleBase);
+      if (m.simpleTypeEntry) simpleInfo = resolveSimpleInfo(m.simpleTypeEntry.dom, {tns:m.simpleTypeEntry.tns}, lookup); }
+  } else if (node.kind === "compositor") {
+    title = node.comp; cls = "ch"; kindLabel = "compositeur";
+    meta.push("occurrences: " + occursOf(node.occDom || node.dom).label);
+    docs = getDocs(node.dom);
+    if (node.comp === "choice") docs = [{ lang:"", text:"Un seul des elements enfants peut apparaitre a cet emplacement." }].concat(docs);
+  } else if (node.kind === "element" || node.kind === "globalElement") {
+    const info = elementInfo(node.dom, node.ctx, lookup);
+    title = info.name; cls = "el"; kindLabel = node.kind === "globalElement" ? "element racine" : "element";
+    if (node.kind !== "globalElement") meta.push("occurrences: " + info.occ.label);
+    if (info.targetCtx && info.targetCtx.tns) meta.push("ns: " + info.targetCtx.tns);
+    if (info.nillable) meta.push("nillable"); if (info.isRef) meta.push("via ref");
+    docs = info.docs.slice(); typeName = info.typeName; typeEntry = info.typeEntry;
+    const stDom = info.typeKind === "simpleType" ? (info.typeEntry ? info.typeEntry.dom : info.inlineType) : null;
+    if (stDom) simpleInfo = resolveSimpleInfo(stDom, info.typeEntry ? {tns:info.typeEntry.tns} : node.ctx, lookup);
+    if (info.typeKind === "complexType") {
+      const ctDom = info.typeEntry ? info.typeEntry.dom : info.inlineType;
+      const ctx = info.typeEntry ? {tns:info.typeEntry.tns, file:info.typeEntry.file} : info.targetCtx;
+      if (ctDom) { const m = getComplexModel(ctDom, ctx, lookup);
+        attrs = m.attributes.map((a) => attributeInfo(a, lookup));
+        if (m.simpleTypeEntry) simpleInfo = resolveSimpleInfo(m.simpleTypeEntry.dom, {tns:m.simpleTypeEntry.tns}, lookup);
+        if (m.simpleBase && !typeEntry) meta.push("contenu simple: " + m.simpleBase); }
+      if (info.typeEntry) docs = docs.concat(getDocs(info.typeEntry.dom));
+    }
+  } else if (node.kind === "any") {
+    title = "xs:any"; cls = "ch"; kindLabel = "wildcard";
+    meta.push("occurrences: " + occursOf(node.dom).label);
+    const nsAttr = node.dom.getAttribute("namespace"); if (nsAttr) meta.push("namespace: " + nsAttr);
+  }
+
+  dt.appendChild(el("div", "kind " + cls, kindLabel));
+  dt.appendChild(el("h2", null, title));
+  const props = el("div", "kv");
+  const addPair = (label, value) => { const p = el("div", "pair"); p.appendChild(el("b", null, label));
+    const v = el("span", "v"); if (value instanceof Node) v.appendChild(value); else v.textContent = value; p.appendChild(v); props.appendChild(p); return v; };
+  meta.forEach((mt) => { const i = mt.indexOf(": ");
+    const k = mt.slice(0, i), label = ({ ns:"Namespace", use:"Use" })[k] || k.charAt(0).toUpperCase() + k.slice(1);
+    if (i > 0) addPair(label, el("code", null, mt.slice(i + 2)));
+    else addPair("Propri\u00E9t\u00E9", mt); });
+  dt.appendChild(props);
+
+  if (typeName) {
+    const span = el("span");
+    if (typeEntry) { const code = el("code", "linkty", typeName); code.onclick = () => selectType(typeEntry); span.appendChild(code);
+      span.appendChild(el("span", "aside", typeEntry.kind + ", " + typeEntry.file)); }
+    else span.appendChild(el("code", null, typeName));
+    addPair("Type", span);
+  }
+  if (!props.children.length) props.remove();
+
+  if (docs.length) {
+    const d = el("div", "doc");
+    docs.forEach((doc) => { const line = el("div");
+      if (doc.lang) line.appendChild(el("span", "lang", doc.lang));
+      line.appendChild(document.createTextNode(doc.text)); d.appendChild(line); });
+    dt.appendChild(d);
+  }
+
+  if (simpleInfo && simpleInfo.chain && simpleInfo.chain.length) {
+    dt.appendChild(el("div", "sec", "Cha\u00EEne de d\u00E9rivation"));
+    const kv = el("div", "kv"); const p = el("div", "pair"); p.appendChild(el("b", null, "Base")); const code = el("code", "v");
+    simpleInfo.chain.forEach((c, i) => {
+      if (i > 0) code.appendChild(el("span", "chain-sep", " \u2192 "));
+      if (c.entry) { const link = el("span", "linkty", c.name); link.onclick = () => selectType(c.entry); code.appendChild(link); }
+      else { code.appendChild(document.createTextNode(c.name)); if (c.unresolved) code.appendChild(el("span", "unres", " (non resolu - fichier manquant ?)")); }
+    });
+    p.appendChild(code); kv.appendChild(p); dt.appendChild(kv);
+  }
+  if (simpleInfo && simpleInfo.unionMembers && simpleInfo.unionMembers.length) {
+    dt.appendChild(el("div", "sec", "Union")); const kv = el("div", "kv"); const p = el("div", "pair"); p.appendChild(el("b", null, "Membres")); p.appendChild(el("code", "v", simpleInfo.unionMembers.join(", "))); kv.appendChild(p); dt.appendChild(kv);
+  }
+  if (simpleInfo && simpleInfo.listItem) {
+    dt.appendChild(el("div", "sec", "Liste")); const kv = el("div", "kv"); const p = el("div", "pair"); p.appendChild(el("b", null, "itemType")); p.appendChild(el("code", "v", simpleInfo.listItem)); kv.appendChild(p); dt.appendChild(kv);
+  }
+  if (simpleInfo && simpleInfo.facets && simpleInfo.facets.length) {
+    dt.appendChild(el("div", "sec", "Facettes / contraintes"));
+    dt.appendChild(tableEl(["Facette", "Valeur"], simpleInfo.facets.map((f) => ["<code>" + esc(f.name) + "</code>", "<code>" + esc(f.value) + "</code>"])));
+  }
+  if (simpleInfo && simpleInfo.enums && simpleInfo.enums.length) {
+    dt.appendChild(secEl("\u00C9num\u00E9rations", simpleInfo.enums.length));
+    dt.appendChild(tableEl([{ t:"Valeur", w:"30%" }, "Description"],
+      simpleInfo.enums.map((e) => ['<code class="enumv">' + esc(e.value) + "</code>", e.doc ? esc(e.doc) : '<span class="none">\u2014</span>'])));
+  }
+  if (attrs.length) {
+    dt.appendChild(secEl("Attributs", attrs.length));
+    dt.appendChild(tableEl(["Nom", "Type", "Use", "Description"], attrs.map((a) => [
+      '<code class="attrn">@' + esc(a.name) + "</code>",
+      "<code>" + esc(a.typeName) + "</code>" + (a.enums.length ? '<div class="enumlist">' + esc(a.enums.map((e) => e.value).join(", ")) + "</div>" : ""),
+      esc(a.use),
+      a.docs.map((d) => esc(d.text)).join(" ") || "\u2014",
+    ])));
+  }
+  right.appendChild(dt);
+}
+
+/* ---------- Fichiers ---------- */
+function addFiles(fileList) {
+  const arr = Array.from(fileList);
+  Promise.all(arr.map((f) => new Promise((res) => {
+    const r = new FileReader();
+    r.onload = () => res({ name:f.name, text:String(r.result) });
+    r.onerror = () => res(null);
+    r.readAsText(f);
+  }))).then((loaded) => {
+    const names = new Set(state.files.map((p) => p.name));
+    state.files = state.files.concat(loaded.filter((l) => l && !names.has(l.name)));
+    rebuild(); renderAll();
+  });
+}
+
+function renderAll() { renderHeader(); renderBars(); renderLeft(); renderDetail(); }
+
+/* ---------- Bind ---------- */
+$("btnAdd").onclick = () => $("fileInput").click();
+$("fileInput").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
+$("btnSample").onclick = () => {
+  state.files = [{ name:"invoice-demo.xsd", text:SAMPLE_MAIN }, { name:"codelists.xsd", text:SAMPLE_CODELISTS }];
+  state.expanded = new Set(); state.selectedNode = null; state.selectedPath = null;
+  rebuild(); renderAll();
+};
+$("backbtn").onclick = () => document.body.classList.remove("showdetail");
+const body = $("body");
+body.ondragover = (e) => e.preventDefault();
+body.ondrop = (e) => { e.preventDefault(); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); };
+
+renderAll();
+</script>
+</body>
+</html>
